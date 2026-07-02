@@ -112,7 +112,21 @@ document.addEventListener('click', function(e){
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjKey(actId){ return 'garmin-adjust-' + actId; }
 function _loadAdj(actId){
+  if(window._showOriginal) return {};
   try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+}
+function _toggleOriginalView(){
+  window._showOriginal=!window._showOriginal;
+  var btn=document.getElementById('btn-toggle-original');
+  if(btn)btn.textContent=window._showOriginal?'Original':'Ajustado';
+  document.querySelectorAll('.actividad').forEach(function(act){
+    if(window._showOriginal)act.classList.remove('editing-on');
+    var id=act.id.replace('act-','');
+    if(typeof window._refreshAct==='function') window._refreshAct(id);
+    if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+  });
+  var fab=document.getElementById('lap-act-fab');
+  if(fab)fab.classList.remove('expanded');
 }
 function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
@@ -455,6 +469,7 @@ function _addEditModeToggle(act){
   }catch(e){}
   btn.onclick=function(e){
     e.preventDefault();e.stopPropagation();
+    if(window._showOriginal)return;
     var on=act.classList.toggle('editing-on');
     btn.classList.toggle('active', on);
     try{localStorage.setItem(_editModeKey(act), on?'1':'0');}catch(e){}
