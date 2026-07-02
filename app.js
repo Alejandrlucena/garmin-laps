@@ -2020,16 +2020,16 @@ function _applyAdjustUI(actId){
   // Cross-propagate chips: ser→ses
   var _cOSD=parseFloat(act.getAttribute('data-orig-dist'))||0;
   var _cOAD=parseFloat(act.getAttribute('data-orig-dist-ser'))||0;
-  if(adj.serDist>0 && !adj.sesDist && _cOAD>0 && _cOSD>0){
-    var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
-    _setChip('sesDist',_nS.toFixed(2));
-    if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));}
-  }
-  if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
-    var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
-    _setChip('serDist',_nA.toFixed(2));
-    if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));}
-  }
+   if(adj.serDist>0 && !adj.sesDist && _cOAD>0 && _cOSD>0){
+     var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
+     _setChip('sesDist',_nS.toFixed(2));
+     if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));_setChip('sesPace',toRitmo(_nS*1000/origDurSes));}
+   }
+   if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
+     var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
+     _setChip('serDist',_nA.toFixed(2));
+     if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',toRitmo(_nA*1000/origDurSer));}
+   }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
 
@@ -2543,6 +2543,13 @@ function _recalcAvgRows(actId){
       var single=_renderZoneBlockGlobal('Media sesión',_zonesFromRows(trs));
       if(single) zonesDiv.innerHTML=single;
     }
+  }
+  // Sync stat chips with current totals when no adjustments active
+  var _sAdj=_loadAdj(actId);
+  if(!_sAdj||Object.keys(_sAdj).length===0){
+    function _sC(f,v){var i=act.querySelector('[data-field="'+f+'"] input'),s=act.querySelector('[data-field="'+f+'"] .stat-statval');if(i){i.value=v;i.dataset.orig=v;}if(s)s.textContent=v;}
+    if(totDist){_sC('sesDist',totDist.toFixed(2));_sC('sesSpd',toKmh(avgSpdSes)+' km/h');_sC('sesPace',toRitmo(avgSpdSes));}
+    if(actDist){_sC('serDist',actDist.toFixed(2));_sC('serSpd',toKmh(avgSpdSer)+' km/h');_sC('serPace',toRitmo(avgSpdSer));}
   }
 }
 function _hideGroup(groupId,actId){
@@ -4086,6 +4093,11 @@ function fromRawGarmin(raw){
         if(laps[i].wktStepIndex===firstStep)lastRealIdx=i;
         else break;
       }
+    } else if(laps.slice(trailingStart).some(l=>l.intensityType==='COOLDOWN')){
+      // Trailing group mixes non-COOLDOWN then COOLDOWN (e.g. REST then COOLDOWN).
+      // Keep non-COOLDOWN laps as descanso of last interval, only COOLDOWN→cooldown.
+      const cdIdx=laps.slice(trailingStart).findIndex(l=>l.intensityType==='COOLDOWN');
+      lastRealIdx=cdIdx>0?trailingStart+cdIdx-1:trailingStart-1;
     } else {
       // Single active step (or no wktStepIndex): all trailing = cooldown, no descanso
       lastRealIdx=trailingStart-1;
@@ -8284,6 +8296,7 @@ setTimeout(function() {
         if(phase){ _DB('REFRESH', 're-applying phase filter: '+phase); _setPhaseFilter(actId, phase); }
       }
     }
+    if(typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
     _dumpFullState('REFRESH: after _refreshAct('+actId+')');
     if(typeof window._dumpRenderedHTML==='function') setTimeout(function(){ window._dumpRenderedHTML(); },0);
   }
