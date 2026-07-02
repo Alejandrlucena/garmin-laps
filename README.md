@@ -1,11 +1,11 @@
 # Garmin Laps · by AlejandrLucena
 
-Visualizador de entrenamientos de Garmin Connect. Carga un `.fit`/`.zip`, conéctate al servidor MCP o pega JSON — obtén una tabla desglosada por vueltas, zonas de FC y grupos de intervalos, lista para compartir como imagen.
+Visualizador y editor interactivo de entrenamientos Garmin. Carga un `.fit`/`.zip`, conéctate al servidor MCP o pega JSON — obtén una tabla desglosada por vueltas, zonas de FC y grupos de intervalos, lista para compartir como imagen. Con ajuste de distancia, ritmo y velocidad, persistente entre recargas y dispositivos.
 
 **Demo:** https://Alejandrlucena.github.io/garmin-laps
 
 > **About del repositorio (GitHub):**  
-> *Visor y editor interactivo de entrenamientos Garmin. Carga archivos .fit, conéctate al servidor MCP o pega JSON. Tabla con vueltas, zonas de FC, grupos personalizables por arrastre, edición en tiempo real, filtros y exportación a imagen.*
+> *Visor y editor interactivo de entrenamientos Garmin. Carga archivos .fit, conéctate al servidor MCP o pega JSON. Ajusta distancia/ritmo/velocidad, modo original vs personalizado, persistencia en servidor, tabla con vueltas, zonas de FC, grupos personalizables por arrastre, edición en tiempo real, filtros y exportación a imagen.*
 
 ---
 
@@ -157,6 +157,22 @@ Con el modo edición activo:
 - **Panel de restauración de filas** — junto a cada actividad aparece `↩ N acciones ocultas ▾` con la lista completa de filas ocultas para restaurar puntualmente.
 
 Lo único que no se persiste entre actividades son las acciones de la tabla (ordenación/grupos/filas ocultas): el historial se reinicia al cargar un JSON nuevo. Las columnas ocultas sí se mantienen por tipo de deporte.
+
+---
+
+## Ajuste de distancia, ritmo y velocidad
+
+Junto al botón **✏️** (modo edición) hay dos botones: **Personalizado** y **Original**. Al cargar una actividad, los valores base de distancia, ritmo y velocidad aparecen en las **stat chips** de la cabecera (sesión y trabajo efectivo). Con **Personalizado** activo:
+- Aparecen como valores editables, como los chips de "Tiempo sesión" / "Tiempo activo"
+- Puedes ajustar la distancia, el ritmo o la velocidad directamente — el servidor recalcula los valores relacionados automáticamente
+- Cada cambio tiene **deshacer/rehacer** (`Cmd/Ctrl+Z`)
+- Los ajustes se guardan automáticamente en el navegador (localStorage) **y** en el servidor Railway (`/adj/{act_id}`) si está configurado
+- Al recargar la página, los valores ajustados se restauran desde el servidor o desde localStorage
+- Los ajustes persisten por actividad: cada actividad tiene su propio conjunto de valores ajustados, identificados por un hash estable de su contenido
+
+Al pulsar **Original**, las chips vuelven a los valores originales de Garmin sin perder los ajustes — puedes alternar entre ambos modos libremente.
+
+Las stat chips (Dist, Ritmo, Vel) están siempre visibles, tanto en modo original como personalizado. En modo edición (✏️) se muestran como inputs editables; sin modo edición se ven igual que "Tiempo sesión" y "Tiempo activo".
 
 ---
 

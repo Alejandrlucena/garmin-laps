@@ -123,6 +123,12 @@ body{background:#0b0c0f;color:#eaeaea;font-family:-apple-system,BlinkMacSystemFo
 .btn-filter-ok.red:hover{background:#2a1010}
 
 /* ── COMPACT BAR ── */
+.toggle-bar{display:none;margin-top:12px;gap:8px;align-items:center;flex-wrap:wrap}
+.toggle-bar.visible{display:flex}
+.toggle-lbl{font-size:11px;color:#6a7280;;white-space:nowrap;flex-shrink:0}
+.btn-toggle{height:32px;background:#06070a;border:1px solid #1e1f25;border-radius:7px;color:#b8c8e0;font-size:12px;padding:0 14px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.btn-toggle:hover{border-color:#3a5a8a;color:#fff}
+.btn-toggle.active{background:#1a2a4a;border-color:#3a6ab0;color:#fff}
 .compact-bar{display:none;margin-top:8px;gap:6px;align-items:center;flex-wrap:wrap}
 .compact-bar.visible{display:flex}
 .compact-select{
@@ -636,8 +642,15 @@ tr:not(.group-header):not(.phase-header):not(.custom-group-header):not(.avg-row)
 .stat-editable input::placeholder{color:#3a4050;font-weight:400}
 .stat-editable .stat-edit-unit{font-size:9px;color:#5a7a9a;font-weight:600;letter-spacing:.3px}
 .stat-editable .stat-edit-icon{font-size:10px;opacity:0.5}
-@media(max-width:640px){.stat-group{grid-template-columns:repeat(2,1fr)}}
-.actividad:not(.editing-on) .stat-editable{display:none!important}
+
+.stat-statval{display:none;font-size:11px;color:#b8c8e0;font-weight:700}
+.actividad:not(.editing-on) .stat-editable{display:inline-flex;align-items:center;gap:6px;
+  background:#0f1014;border:1px solid #1e1f25;border-radius:7px;padding:4px 10px;line-height:1}
+.actividad:not(.editing-on) .stat-editable .stat-statval{display:inline}
+.actividad:not(.editing-on) .stat-editable input{display:none}
+.actividad:not(.editing-on) .stat-editable .stat-edit-unit{font-size:9px;color:#454a55;
+  font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+
 /* ── PHASE FILTER PILLS ── */
 .phase-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .phase-pill{

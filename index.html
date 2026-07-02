@@ -52,6 +52,11 @@
       <button class="btn-filter-ok red" onclick="applyFilterRemove()" title="Oculta y recalcula medias, trabajo efectivo y zonas">Quitar</button>
       <button class="btn-filter-ok green" onclick="showAllRows()">Mostrar todo</button>
     </div>
+    <div class="toggle-bar" id="toggle-bar">
+      <span class="toggle-lbl">Datos actividad:</span>
+      <button class="btn-toggle active" id="btn-view-personalizado" onclick="_setViewMode('personalizado')">Personalizado</button>
+      <button class="btn-toggle" id="btn-view-original" onclick="_setViewMode('original')">Original</button>
+    </div>
     <div class="compact-bar" id="compact-bar">
       <span class="compact-lbl">Agrupar cada:</span>
       <select class="compact-select" id="compact-preset" onchange="onCompactPresetChange()">

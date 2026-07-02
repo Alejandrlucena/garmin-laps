@@ -146,10 +146,23 @@ function _setViewMode(mode){
     if(b)b.classList.toggle('active',m===mode);
   });
   document.querySelectorAll('.actividad').forEach(function(act){
-    if(window._showOriginal)act.classList.remove('editing-on');
     var id=act.id.replace('act-','');
-    if(typeof window._refreshAct==='function') window._refreshAct(id);
-    if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+    if(window._showOriginal){
+      act.classList.remove('editing-on');
+      if(typeof window._refreshAct==='function') window._refreshAct(id);
+      act.querySelectorAll('.stat-editable').forEach(function(chip){
+        var inp=chip.querySelector('input');
+        var s=chip.querySelector('.stat-statval');
+        if(inp&&inp.dataset.orig){
+          var ov=inp.dataset.orig;
+          inp.value=ov;
+          if(s)s.textContent=ov;
+        }
+      });
+    } else {
+      if(typeof window._refreshAct==='function') window._refreshAct(id);
+      if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+    }
   });
   var fab=document.getElementById('lap-act-fab');
   if(fab)fab.classList.remove('expanded');
@@ -1984,44 +1997,26 @@ function _applyAdjustUI(actId){
   function _setChip(field, val){
     var i = act.querySelector('[data-field="'+field+'"] input');
     if(i) i.value = val;
+    var s = act.querySelector('[data-field="'+field+'"] .stat-statval');
+    if(s) s.textContent = val;
+  }
+  function _restoreOrig(field){
+    var ci = act.querySelector('[data-field="'+field+'"] input');
+    if(ci && ci.dataset.orig) _setChip(field, ci.dataset.orig);
   }
 
-  if(adj.sesDist > 0){
-    _setChip('sesDist', adj.sesDist.toFixed(2));
-  } else {
-    var ci = act.querySelector('[data-field="sesDist"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
-  if(adj.sesPace){
-    _setChip('sesPace', _secsToPaceStr(adj.sesPace));
-  } else {
-    var ci = act.querySelector('[data-field="sesPace"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
-  if(adj.serDist > 0){
-    _setChip('serDist', adj.serDist.toFixed(2));
-  } else {
-    var ci = act.querySelector('[data-field="serDist"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
-  if(adj.serPace){
-    _setChip('serPace', _secsToPaceStr(adj.serPace));
-  } else {
-    var ci = act.querySelector('[data-field="serPace"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
-  if(adj.sesDist > 0 && origDurSes > 0){
-    _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2));
-  } else {
-    var ci = act.querySelector('[data-field="sesSpd"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
-  if(adj.serDist > 0 && origDurSer > 0){
-    _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2));
-  } else {
-    var ci = act.querySelector('[data-field="serSpd"] input');
-    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
-  }
+  if(adj.sesDist > 0) _setChip('sesDist', adj.sesDist.toFixed(2));
+  else _restoreOrig('sesDist');
+  if(adj.sesPace) _setChip('sesPace', _secsToPaceStr(adj.sesPace));
+  else _restoreOrig('sesPace');
+  if(adj.serDist > 0) _setChip('serDist', adj.serDist.toFixed(2));
+  else _restoreOrig('serDist');
+  if(adj.serPace) _setChip('serPace', _secsToPaceStr(adj.serPace));
+  else _restoreOrig('serPace');
+  if(adj.sesDist > 0 && origDurSes > 0) _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2));
+  else _restoreOrig('sesSpd');
+  if(adj.serDist > 0 && origDurSer > 0) _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2));
+  else _restoreOrig('serSpd');
   // Cross-propagate chips: ser→ses
   var _cOSD=parseFloat(act.getAttribute('data-orig-dist'))||0;
   var _cOAD=parseFloat(act.getAttribute('data-orig-dist-ser'))||0;
@@ -3426,18 +3421,19 @@ var allR=[];
 
   function fmtDur(s){if(!s||!isFinite(s))return'—';s=Math.round(s);var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;if(h>0)return h+'h '+m+'min';if(m>0)return m+'min '+(sc>0?sc+'s':'');return sc+'s';}
 
-  var _sesDistInput = _adjDistSes ? _adjDistSes.toFixed(2) : '';
-  var _sesPaceInput = _adjPaceSes ? _secsToPaceStr(_adjPaceSes) : '';
-  var _sesSpdInput = _adjDistSes && totalDurSes > 0 ? (_adjDistSes * 1000 / totalDurSes * 3.6).toFixed(2) : '';
-  var _serDistInput = _adjDistSer ? _adjDistSer.toFixed(2) : '';
-  var _serPaceInput = _adjPaceSer ? _secsToPaceStr(_adjPaceSer) : '';
-  var _serSpdInput = _adjDistSer && totalDurSer > 0 ? (_adjDistSer * 1000 / totalDurSer * 3.6).toFixed(2) : '';
+  var _sesDistInput = _adjDistSes ? _adjDistSes.toFixed(2) : (totalDistSes ? totalDistSes.toFixed(2) : '');
+  var _sesPaceInput = _adjPaceSes ? _secsToPaceStr(_adjPaceSes) : (_origAccSesPace||'');
+  var _sesSpdInput = _adjDistSes && totalDurSes > 0 ? (_adjDistSes * 1000 / totalDurSes * 3.6).toFixed(2) : (totalDistSes > 0 && totalDurSes > 0 ? (totalDistSes*1000/totalDurSes*3.6).toFixed(2) : '');
+  var _serDistInput = _adjDistSer ? _adjDistSer.toFixed(2) : (totalDistSer ? totalDistSer.toFixed(2) : '');
+  var _serPaceInput = _adjPaceSer ? _secsToPaceStr(_adjPaceSer) : (_origAccSerPace||'');
+  var _serSpdInput = _adjDistSer && totalDurSer > 0 ? (_adjDistSer * 1000 / totalDurSer * 3.6).toFixed(2) : (totalDistSer > 0 && totalDurSer > 0 ? (totalDistSer*1000/totalDurSer*3.6).toFixed(2) : '');
 
   var statsHtml = '<div class="session-stats">'
     + '<div class="stat-group">'
     + '<div class="stat-chip"><span class="stat-lbl">Tiempo sesión</span><span class="stat-val">'+fmtDur(totalSecs)+'</span></div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesDist">'
       + '<span class="stat-edit-unit">Dist</span>'
+      + '<span class="stat-statval">'+(_sesDistInput||'')+'</span>'
       + '<input type="text" value="'+_sesDistInput+'" data-orig="'+(totalDistSes?totalDistSes.toFixed(2):'')+'" '
       + 'onfocus="this.select()" onblur="_onDistEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -3446,6 +3442,7 @@ var allR=[];
     + '</div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesPace">'
       + '<span class="stat-edit-unit">Ritmo</span>'
+      + '<span class="stat-statval">'+(_sesPaceInput||'')+'</span>'
       + '<input type="text" value="'+_sesPaceInput+'" data-orig="'+_origAccSesPace+'" '
       + 'onfocus="this.select()" onblur="_onPaceEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -3453,6 +3450,7 @@ var allR=[];
     + '</div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesSpd">'
       + '<span class="stat-edit-unit">Vel</span>'
+      + '<span class="stat-statval">'+(_sesSpdInput||'')+'</span>'
       + '<input type="text" value="'+_sesSpdInput+'" data-orig="'+(totalDistSes>0&&totalDurSes>0?(totalDistSes*1000/totalDurSes*3.6).toFixed(2):'')+'" '
       + 'onfocus="this.select()" onblur="_onSpeedEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -3465,6 +3463,7 @@ var allR=[];
         + '<div class="stat-chip"><span class="stat-lbl">Tiempo activo</span><span class="stat-val">'+fmtDur(activeSecs)+'</span></div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serDist">'
           + '<span class="stat-edit-unit">Dist.act</span>'
+          + '<span class="stat-statval">'+(_serDistInput||'')+'</span>'
           + '<input type="text" value="'+_serDistInput+'" data-orig="'+(totalDistSer?totalDistSer.toFixed(2):'')+'" '
           + 'onfocus="this.select()" onblur="_onDistEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -3473,6 +3472,7 @@ var allR=[];
         + '</div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serPace">'
           + '<span class="stat-edit-unit">Rit.act</span>'
+          + '<span class="stat-statval">'+(_serPaceInput||'')+'</span>'
           + '<input type="text" value="'+_serPaceInput+'" data-orig="'+_origAccSerPace+'" '
           + 'onfocus="this.select()" onblur="_onPaceEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -3480,6 +3480,7 @@ var allR=[];
         + '</div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serSpd">'
           + '<span class="stat-edit-unit">Vel.act</span>'
+          + '<span class="stat-statval">'+(_serSpdInput||'')+'</span>'
           + '<input type="text" value="'+_serSpdInput+'" data-orig="'+(totalDistSer>0&&totalDurSer>0?(totalDistSer*1000/totalDurSer*3.6).toFixed(2):'')+'" '
           + 'onfocus="this.select()" onblur="_onSpeedEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
@@ -4375,6 +4376,12 @@ function render(){
       _showCompactBar(true); _updateCompactResetBtn();
       _updateClearBtnState();
       if(window.innerWidth<900)setTimeout(()=>document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'}),100);
+      setTimeout(function(){
+        document.querySelectorAll('.actividad').forEach(function(act){
+          var id=act.id.replace('act-','');
+          if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+        });
+      }, 0);
       return;
     }
   }
@@ -4426,6 +4433,13 @@ function render(){
   if(window.innerWidth<900){
     setTimeout(()=>document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'}),100);
   }
+  // Apply saved adjustments to chips after render
+  setTimeout(function(){
+    document.querySelectorAll('.actividad').forEach(function(act){
+      var id = act.id.replace('act-','');
+      if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+    });
+  }, 0);
 }
 
 /* ── SAVE IMAGE ── */
