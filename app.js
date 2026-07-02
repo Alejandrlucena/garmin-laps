@@ -1909,47 +1909,45 @@ function _onSpeedEdit(input, actId){
     if(typeof window._updateFabState==='function') window._updateFabState();
   }
 }
-function _recalcAdjust(actId){
+function _applyAdjustUI(actId){
   var act = document.getElementById('act-' + actId);
-  if(!act){ return; }
+  if(!act) return;
   var adj = _loadAdj(actId) || {};
   var origDurSes = parseFloat(act.getAttribute('data-orig-dur')) || 0;
   var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
 
-  // 1) Actualizar inputs de chips
   if(adj.sesDist > 0){
-    var sesDistInput = act.querySelector('[data-field="sesDist"] input');
-    if(sesDistInput) sesDistInput.value = adj.sesDist.toFixed(2);
+    var i = act.querySelector('[data-field="sesDist"] input');
+    if(i) i.value = adj.sesDist.toFixed(2);
   }
   if(adj.sesPace){
-    var sesPaceInput = act.querySelector('[data-field="sesPace"] input');
-    if(sesPaceInput) sesPaceInput.value = _secsToPaceStr(adj.sesPace);
+    var i = act.querySelector('[data-field="sesPace"] input');
+    if(i) i.value = _secsToPaceStr(adj.sesPace);
   }
   if(adj.serDist > 0){
-    var serDistInput = act.querySelector('[data-field="serDist"] input');
-    if(serDistInput) serDistInput.value = adj.serDist.toFixed(2);
+    var i = act.querySelector('[data-field="serDist"] input');
+    if(i) i.value = adj.serDist.toFixed(2);
   }
   if(adj.serPace){
-    var serPaceInput = act.querySelector('[data-field="serPace"] input');
-    if(serPaceInput) serPaceInput.value = _secsToPaceStr(adj.serPace);
+    var i = act.querySelector('[data-field="serPace"] input');
+    if(i) i.value = _secsToPaceStr(adj.serPace);
   }
   if(adj.sesDist > 0 && origDurSes > 0){
-    var sesSpdInput = act.querySelector('[data-field="sesSpd"] input');
-    if(sesSpdInput) sesSpdInput.value = (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2);
+    var i = act.querySelector('[data-field="sesSpd"] input');
+    if(i) i.value = (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2);
   }
   if(adj.serDist > 0 && origDurSer > 0){
-    var serSpdInput = act.querySelector('[data-field="serSpd"] input');
-    if(serSpdInput) serSpdInput.value = (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2);
+    var i = act.querySelector('[data-field="serSpd"] input');
+    if(i) i.value = (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2);
   }
-
-  // 2) Aplicar ajustes a celdas de resumen (usamos helper para re-aplicar tras _refreshAct)
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
+}
 
+function _recalcAdjust(actId){
+  _applyAdjustUI(actId);
   _DB('ADJ', 'about to call _refreshAct for actId='+actId);
   if(typeof window._refreshAct==='function') window._refreshAct(actId);
-
-  // 3) Re-aplicar ajustes después de _refreshAct (que llama _recalcAvgRows y sobrescribe)
-  _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
+  _applyAdjustUI(actId);
 }
 
 function _applyAdjustToSummary(actId, adj, origDurSes, origDurSer){
@@ -8183,6 +8181,7 @@ setTimeout(function() {
     try{ if(op.undo) op.undo(); }catch(e){ console.log('[UNDO/OP] undo error:', e); }
     W._editRedo.push(op);
     _refreshAct(op.actId);
+    if(typeof _applyAdjustUI==='function') _applyAdjustUI(op.actId);
     _updateFabState();
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
   }
@@ -8194,6 +8193,7 @@ setTimeout(function() {
     try{ if(op.apply) op.apply(); }catch(e){ console.log('[UNDO/OP] redo error:', e); }
     W._editStack.push(op);
     _refreshAct(op.actId);
+    if(typeof _applyAdjustUI==='function') _applyAdjustUI(op.actId);
     _updateFabState();
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
   }
