@@ -1709,6 +1709,7 @@ function _distributeZones(lap,zonaRef,fcMin,fcMax,fcRange){
 /* ── HIDE / RESTORE STACK ── */
 window._hideStack=window._hideStack||[];
 function _pushHide(actId,rowIds,label,meta){
+  console.log('[UNDO/HIDE] ORIGINAL _pushHide called! actId='+actId+' rowIds='+rowIds.join(',')+' label='+label+' STACK:_hideStack.length='+(window._hideStack||[]).length);
   var id=Date.now()+'-'+Math.random().toString(36).slice(2,6);
   window._hideStack.push({id:id,actId:actId,rowIds:rowIds.slice(),label:label,meta:meta||{}});
 }
@@ -1784,6 +1785,7 @@ function _onDistEdit(input, actId){
     var newVal = parseFloat(input.value);
     var field = input.closest('.stat-editable').getAttribute('data-field');
     var adj = _loadAdj(actId) || {};
+    var _oldAdj = JSON.parse(JSON.stringify(adj));
     if(isNaN(newVal) || newVal <= 0){
       if(field === 'sesDist'){
         input.value = (adj.sesDist > 0) ? adj.sesDist.toFixed(2) : '';
@@ -1813,6 +1815,16 @@ function _onDistEdit(input, actId){
     }
     _saveAdj(actId, adj);
     _recalcAdjust(actId);
+    if(window._editStack){
+      window._editStack.push({actId:actId, type:'statEdit', field:field,
+        oldAdj:JSON.parse(JSON.stringify(_oldAdj)),
+        newAdj:JSON.parse(JSON.stringify(adj)),
+        apply:function(){_saveAdj(actId,this.newAdj);_recalcAdjust(actId);},
+        undo:function(){_saveAdj(actId,this.oldAdj);_recalcAdjust(actId);}
+      });
+      window._editRedo.length=0;
+      if(typeof window._updateFabState==='function') window._updateFabState();
+    }
   } catch(e) {
     console.error('ERROR _onDistEdit:', e);
   }
@@ -1821,6 +1833,7 @@ function _onPaceEdit(input, actId){
   var paceSecs = _paceStrToSecs(input.value);
   var field = input.closest('.stat-editable').getAttribute('data-field');
   var adj = _loadAdj(actId) || {};
+  var _oldAdj = JSON.parse(JSON.stringify(adj));
   if(!paceSecs || paceSecs <= 0){
     if(field === 'sesPace'){
       input.value = adj.sesPace ? _secsToPaceStr(adj.sesPace) : '';
@@ -1842,11 +1855,22 @@ function _onPaceEdit(input, actId){
   }
   _saveAdj(actId, adj);
   _recalcAdjust(actId);
+  if(window._editStack){
+    window._editStack.push({actId:actId, type:'statEdit', field:field,
+      oldAdj:JSON.parse(JSON.stringify(_oldAdj)),
+      newAdj:JSON.parse(JSON.stringify(adj)),
+      apply:function(){_saveAdj(actId,this.newAdj);_recalcAdjust(actId);},
+      undo:function(){_saveAdj(actId,this.oldAdj);_recalcAdjust(actId);}
+    });
+    window._editRedo.length=0;
+    if(typeof window._updateFabState==='function') window._updateFabState();
+  }
 }
 function _onSpeedEdit(input, actId){
   var kmh = parseFloat(input.value);
   var field = input.closest('.stat-editable').getAttribute('data-field');
   var adj = _loadAdj(actId) || {};
+  var _oldAdj = JSON.parse(JSON.stringify(adj));
   if(!kmh || kmh <= 0){
     if(field === 'sesSpd'){
       input.value = adj.sesDist ? (adj.sesDist * 1000 / (parseFloat((document.getElementById('act-'+actId)||{}).getAttribute('data-orig-dur'))||1) * 3.6).toFixed(2) : '';
@@ -1874,6 +1898,16 @@ function _onSpeedEdit(input, actId){
   }
   _saveAdj(actId, adj);
   _recalcAdjust(actId);
+  if(window._editStack){
+    window._editStack.push({actId:actId, type:'statEdit', field:field,
+      oldAdj:JSON.parse(JSON.stringify(_oldAdj)),
+      newAdj:JSON.parse(JSON.stringify(adj)),
+      apply:function(){_saveAdj(actId,this.newAdj);_recalcAdjust(actId);},
+      undo:function(){_saveAdj(actId,this.oldAdj);_recalcAdjust(actId);}
+    });
+    window._editRedo.length=0;
+    if(typeof window._updateFabState==='function') window._updateFabState();
+  }
 }
 function _recalcAdjust(actId){
   var act = document.getElementById('act-' + actId);
@@ -2057,15 +2091,47 @@ function _onLapSpeedPaceBlur(e){
   }
   var cls=tr.className||'';
   _DB('EDIT', 'cls='+cls+' isHeader='+(cls.indexOf('group-header')>=0||cls.indexOf('phase-header')>=0));
-  if(cls.indexOf('group-header')>=0||cls.indexOf('phase-header')>=0){
+  var _isHdr=cls.indexOf('group-header')>=0||cls.indexOf('phase-header')>=0;
+  var _oldChildren=_isHdr?_getGroupChildren(tr).map(function(cr){return{id:cr.id,speed:parseFloat(cr.getAttribute('data-speed'))||0,dist:parseFloat(cr.getAttribute('data-dist'))||0,dur:parseFloat(cr.getAttribute('data-dur'))||0};}):null;
+  if(_isHdr){
     _scaleGroupChildren(tr, parsedSpeed, oldSpeed);
   } else {
     _recalcParentHeader(tr);
   }
+  var _newChildren=_isHdr?_getGroupChildren(tr).map(function(cr){return{id:cr.id,speed:parseFloat(cr.getAttribute('data-speed'))||0,dist:parseFloat(cr.getAttribute('data-dist'))||0,dur:parseFloat(cr.getAttribute('data-dur'))||0};}):null;
   _recalcAvgRows(actId);
   _DB('EDIT', 'calling _refreshAct for actId='+actId);
   if(typeof window._refreshAct==='function') window._refreshAct(actId);
   _DB('EDIT', '_onLapSpeedPaceBlur DONE');
+  if(window._editStack){
+    var _uOp={actId:actId, type:'cellEdit', id:tr.id,
+      oldState:{speed:oldSpeed, dist:oldDist, dur:oldDur, children:_oldChildren},
+      newState:{speed:parsedSpeed, dist:newDist, dur:newDur, children:_newChildren},
+      apply:function(){_restoreRowData(document.getElementById(_uOp.id),_uOp.newState);if(_uOp.newState.children)_uOp.newState.children.forEach(function(c){_restoreRowData(document.getElementById(c.id),c);});},
+      undo:function(){_restoreRowData(document.getElementById(_uOp.id),_uOp.oldState);if(_uOp.oldState.children)_uOp.oldState.children.forEach(function(c){_restoreRowData(document.getElementById(c.id),c);});}
+    };
+    window._editStack.push(_uOp);
+    window._editRedo.length=0;
+    if(typeof window._updateFabState==='function') window._updateFabState();
+  }
+}
+function _restoreRowData(tr, state){
+  if(!tr||!state) return;
+  tr.setAttribute('data-speed', state.speed);
+  tr.setAttribute('data-dist', state.dist);
+  tr.setAttribute('data-dur', state.dur);
+  var spdMain=tr.querySelector('.col-speed .main');
+  var paceMain=tr.querySelector('.col-pace .main');
+  var distMain=tr.querySelector('.col-dist .main');
+  var timeMain=tr.querySelector('.col-time .main');
+  if(spdMain) spdMain.textContent=toKmh(state.speed)+' km/h';
+  if(paceMain) paceMain.textContent=toRitmo(state.speed);
+  if(distMain) distMain.textContent=state.dist.toFixed(2);
+  if(timeMain){
+    var act=tr.closest('.actividad');
+    var isMoto=act?act.getAttribute('data-sport')==='MOTO':false;
+    timeMain.textContent=secsToStepStr(state.dur,isMoto?3:1);
+  }
 }
 function _getGroupChildren(headerTr){
   var children=[];
@@ -2150,66 +2216,7 @@ function _timeStrToSecs(val){
   if(n<100) return n*60;
   return n;
 }
-function _getGroupChildren(headerTr){
-  var children=[];
-  var next=headerTr.nextElementSibling;
-  while(next){
-    var cls=next.className||'';
-    if(cls.indexOf('group-header')>=0||cls.indexOf('phase-header')>=0||cls.indexOf('avg-row')>=0||cls.indexOf('avg-act')>=0) break;
-    if(cls.indexOf('group-lap')>=0||cls.indexOf('group-boundary')>=0) children.push(next);
-    next=next.nextElementSibling;
-  }
-  return children;
-}
-function _scaleGroupChildren(headerTr, newSpeed, oldSpeed){
-  _DB('EDIT', '_scaleGroupChildren header='+headerTr.id+' ratio='+(oldSpeed>0?(newSpeed/oldSpeed).toFixed(4):'inf')+' children='+(_getGroupChildren(headerTr).length));
-  if(oldSpeed<=0||newSpeed<=0) return;
-  var ratio=newSpeed/oldSpeed;
-  var children=_getGroupChildren(headerTr);
-  children.forEach(function(child){
-    var cSpd=parseFloat(child.getAttribute('data-speed'))||0;
-    var cDur=parseFloat(child.getAttribute('data-dur'))||0;
-    var cDist=parseFloat(child.getAttribute('data-dist'))||0;
-    var newChildSpd=Math.round(cSpd*ratio*10000)/10000;
-    var newChildDist=cDur>0?Math.round(newChildSpd*cDur/1000*1000)/1000:cDist*ratio;
-    newChildDist=Math.round(newChildDist*1000)/1000;
-    child.setAttribute('data-speed',newChildSpd);
-    child.setAttribute('data-dist',newChildDist);
-    var spdMain=child.querySelector('.col-speed .main');
-    var paceMain=child.querySelector('.col-pace .main');
-    var distMain=child.querySelector('.col-dist .main');
-    if(spdMain) spdMain.textContent=toKmh(newChildSpd);
-    if(paceMain) paceMain.textContent=toRitmo(newChildSpd);
-    if(distMain) distMain.textContent=newChildDist.toFixed(2);
-  });
-}
-function _getParentHeader(childTr){
-  var prev=childTr.previousElementSibling;
-  while(prev){
-    var cls=prev.className||'';
-    if(cls.indexOf('group-header')>=0||cls.indexOf('phase-header')>=0) return prev;
-    if(cls.indexOf('avg-row')>=0||cls.indexOf('avg-act')>=0) break;
-    prev=prev.previousElementSibling;
-  }
-  return null;
-}
-function _recalcParentHeader(childTr){
-  _DB('EDIT', '_recalcParentHeader child='+childTr.id);
-  var header=_getParentHeader(childTr);
-  if(!header){ _DB('EDIT', 'no header found'); return; }
-  var children=_getGroupChildren(header);
-  if(!children.length){ _DB('EDIT', 'no children'); return; }
-  var totDur=0,totDist=0,ws=0;
-  children.forEach(function(c){
-    var d=parseFloat(c.getAttribute('data-dur'))||0;
-    var s=parseFloat(c.getAttribute('data-speed'))||0;
-    var dist=parseFloat(c.getAttribute('data-dist'))||0;
-    totDur+=d; totDist+=dist;
-    if(s>0&&d>0){ ws+=s*d; }
-  });
-  var avgSpd=totDur>0?ws/totDur:0;
-  if(avgSpd<=0){ _DB('EDIT', 'avgSpd<=0'); return; }
-  header.setAttribute('data-speed',avgSpd);
+function _timeStrToSecs(val){
   header.setAttribute('data-dist',totDur>0?Math.round(avgSpd*totDur/1000*1000)/1000:totDist);
   var spdMain=header.querySelector('.col-speed .main');
   var paceMain=header.querySelector('.col-pace .main');
@@ -2256,6 +2263,16 @@ document.addEventListener('focusout',function(e){
   el.textContent=normalized;
   var tr=el.closest('tr');
   if(tr)tr.setAttribute('data-lbl',normalized);
+  if(tr&&window._editStack&&origVal){
+    var actId=tr.id?tr.id.replace(/(r\d+|g\d+|ses|ser|merge\d+)$/,''):'';
+    var _uOp={actId:actId,type:'labelEdit',id:tr.id,oldLabel:origVal,newLabel:normalized,
+      apply:function(){var t=document.getElementById(_uOp.id);if(t){t.setAttribute('data-lbl',_uOp.newLabel);var s=t.querySelector('.lap-label-edit');if(s)s.textContent=_uOp.newLabel;}},
+      undo:function(){var t=document.getElementById(_uOp.id);if(t){t.setAttribute('data-lbl',_uOp.oldLabel);var s=t.querySelector('.lap-label-edit');if(s)s.textContent=_uOp.oldLabel;}}
+    };
+    window._editStack.push(_uOp);
+    window._editRedo.length=0;
+    if(typeof window._updateFabState==='function') window._updateFabState();
+  }
 });
 document.addEventListener('click',_onLapSpeedPaceClick,true);
 document.addEventListener('focusout',_onLapSpeedPaceBlur);
@@ -3313,6 +3330,7 @@ var allR=[];
   var _serSpdInput = _adjDistSer && totalDurSer > 0 ? (_adjDistSer * 1000 / totalDurSer * 3.6).toFixed(2) : '';
 
   var statsHtml = '<div class="session-stats">'
+    + '<div class="stat-group">'
     + '<div class="stat-chip"><span class="stat-lbl">Tiempo sesión</span><span class="stat-val">'+fmtDur(totalSecs)+'</span></div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesDist">'
       + '<span class="stat-edit-unit">Dist</span>'
@@ -3337,8 +3355,10 @@ var allR=[];
       + 'placeholder="km/h">'
       + '<span class="stat-edit-unit">km/h</span>'
     + '</div>'
+    + '</div>'
     + (esIntervalos
-      ? '<div class="stat-chip"><span class="stat-lbl">Tiempo activo</span><span class="stat-val">'+fmtDur(activeSecs)+'</span></div>'
+      ? '<div class="stat-group">'
+        + '<div class="stat-chip"><span class="stat-lbl">Tiempo activo</span><span class="stat-val">'+fmtDur(activeSecs)+'</span></div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serDist">'
           + '<span class="stat-edit-unit">Dist.act</span>'
           + '<input type="text" value="'+_serDistInput+'" '
@@ -3361,6 +3381,7 @@ var allR=[];
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
           + 'placeholder="km/h">'
           + '<span class="stat-edit-unit">km/h</span>'
+        + '</div>'
         + '</div>'
       : '')
     + '</div>';
@@ -8155,20 +8176,22 @@ setTimeout(function() {
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
   }
   function _undoOp(){
+    console.log('[UNDO/OP] _undoOp called. _editStack.length:', W._editStack.length, '_editRedo.length:', W._editRedo.length);
     var op = W._editStack.pop();
-    if(!op) return;
-    _DB('STACK', 'undo type='+op.type+' actId='+op.actId+' id='+op.id);
-    try{ if(op.undo) op.undo(); }catch(e){}
+    if(!op) { console.log('[UNDO/OP] nothing to undo'); return; }
+    console.log('[UNDO/OP] popping op type='+op.type+' id='+op.id+' actId='+op.actId);
+    try{ if(op.undo) op.undo(); }catch(e){ console.log('[UNDO/OP] undo error:', e); }
     W._editRedo.push(op);
     _refreshAct(op.actId);
     _updateFabState();
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
   }
   function _redoOp(){
+    console.log('[UNDO/OP] _redoOp called. _editStack.length:', W._editStack.length, '_editRedo.length:', W._editRedo.length);
     var op = W._editRedo.pop();
-    if(!op) return;
-    _DB('STACK', 'redo type='+op.type+' actId='+op.actId+' id='+op.id);
-    try{ if(op.apply) op.apply(); }catch(e){}
+    if(!op) { console.log('[UNDO/OP] nothing to redo'); return; }
+    console.log('[UNDO/OP] popping op type='+op.type+' id='+op.id+' actId='+op.actId);
+    try{ if(op.apply) op.apply(); }catch(e){ console.log('[UNDO/OP] redo error:', e); }
     W._editStack.push(op);
     _refreshAct(op.actId);
     _updateFabState();
@@ -9928,9 +9951,10 @@ setTimeout(function() {
 
   // ── Wrap _pushHide so hides flow through the unified stack too ──
   var _origPushHide = W._pushHide;
+  console.log('[UNDO/STACK] _origPushHide found:', typeof _origPushHide, '_origPushHide.__lapWrapped:', _origPushHide && _origPushHide.__lapWrapped, 'W._pushHide === _pushHide:', W._pushHide === _pushHide);
   if(typeof _origPushHide === 'function' && !_origPushHide.__lapWrapped){
     W._pushHide = function(actId, rowIds, label, meta){
-      _DB('HIDE', 'actId='+actId+' rowIds='+rowIds.join(',')+' label='+label);
+      console.log('[UNDO/HIDE] WRAPPED _pushHide CALLED! actId='+actId+' rowIds='+rowIds.join(',')+' label='+label);
       _origPushHide.apply(this, arguments);
       var hideOp = {
         actId: actId, type: 'hide',
@@ -10074,6 +10098,8 @@ setTimeout(function() {
   function _updateFabState(){
     var fab = _ensureFab();
     var editActive = !!document.querySelector('.edit-mode-toggle.active');
+    var hasAct = !!document.querySelector('.actividad');
+    console.log('[UNDO/FAB] _updateFabState editActive='+editActive+' hasAct='+hasAct+' fab.exists='+!!fab+' _editStack.length='+(W._editStack?W._editStack.length:'?')+' _editRedo.length='+(W._editRedo?W._editRedo.length:'?'));
     if(editActive) fab.classList.add('visible'); else fab.classList.remove('visible');
     var undoBtn = fab.querySelector('.undo'), redoBtn = fab.querySelector('.redo');
     if(undoBtn) undoBtn.disabled = !(W._editStack && W._editStack.length);

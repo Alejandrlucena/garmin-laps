@@ -610,18 +610,17 @@ tr:not(.group-header):not(.phase-header):not(.custom-group-header):not(.avg-row)
 .connector-login-btn.active:hover{color:#70d070;border-color:#287028;background:#101a10}
 
 /* ── SESSION STATS ── */
-.session-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.session-stats{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.stat-group{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat-group + .stat-group{padding-top:10px;border-top:1px solid #1e1f25}
 .stat-chip{display:inline-flex;align-items:center;gap:6px;
   background:#0f1014;border:1px solid #1e1f25;border-radius:7px;
   padding:4px 10px;line-height:1}
 .stat-lbl{font-size:9px;color:#454a55;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
 .stat-val{font-size:11px;color:#b8c8e0;font-weight:700}
-/* ── STAT CHIPS EDITABLES (solo en modo edición) ── */
-.actividad:not(.editing-on) .stat-editable{display:none!important}
-.stat-editable{
-  display:inline-flex;align-items:center;gap:5px;
+.stat-editable{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;
   background:#1a1e2e;border:1.5px solid #4a7aaa;
-  border-radius:8px;padding:5px 10px;line-height:1;
+  border-radius:8px;padding:5px 8px;line-height:1;
   box-shadow:0 0 6px rgba(74,122,170,0.15);
   transition:all .15s;
 }
@@ -629,14 +628,16 @@ tr:not(.group-header):not(.phase-header):not(.custom-group-header):not(.avg-row)
 .stat-editable input{
   background:#0d0f15;border:1px solid #2a3040;border-radius:4px;
   color:#7ec8e3;font-size:12px;font-weight:700;
-  width:62px;text-align:center;outline:none;font-family:inherit;
-  padding:2px 4px;
+  width:100%;min-width:0;text-align:center;outline:none;font-family:inherit;
+  box-sizing:border-box;padding:2px 4px;
   transition:border-color .15s,background .15s;
 }
 .stat-editable input:focus{border-color:#4a7aaa;background:#111420;color:#fff}
 .stat-editable input::placeholder{color:#3a4050;font-weight:400}
 .stat-editable .stat-edit-unit{font-size:9px;color:#5a7a9a;font-weight:600;letter-spacing:.3px}
 .stat-editable .stat-edit-icon{font-size:10px;opacity:0.5}
+@media(max-width:640px){.stat-group{grid-template-columns:repeat(2,1fr)}}
+.actividad:not(.editing-on) .stat-editable{display:none!important}
 /* ── PHASE FILTER PILLS ── */
 .phase-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .phase-pill{
