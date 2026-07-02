@@ -1,3 +1,5 @@
+/* ── HASH estable para persistir ajustes entre recargas ── */
+function _dataHash(s){for(var h=0,i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h).toString(36);}
 /* ── DEBUG UTILITY (pon _DB_ON=true para activar logs) ── */
 var _DB_ON = false;
 function _DB(tag){
@@ -216,8 +218,9 @@ var _compactKm = 0;
 var _lastParsedList = null;
 
 function _assignHideKeys(lista){
+  var dh=window._dataRawHash||'';
   (lista||[]).forEach(function(act,ai){
-    if(!act._actKey)act._actKey='act'+ai;
+    if(!act._actKey)act._actKey='act'+dh+ai;
     var n=0;
     function mark(row){
       if(!row)return;
@@ -1786,6 +1789,7 @@ function _onDistEdit(input, actId){
     var field = input.closest('.stat-editable').getAttribute('data-field');
     var adj = _loadAdj(actId) || {};
     var _oldAdj = JSON.parse(JSON.stringify(adj));
+    var actEl = document.getElementById('act-' + actId);
     if(isNaN(newVal) || newVal <= 0){
       if(field === 'sesDist'){
         input.value = (adj.sesDist > 0) ? adj.sesDist.toFixed(2) : '';
@@ -1794,21 +1798,26 @@ function _onDistEdit(input, actId){
       }
       return;
     }
-    if(field === 'sesDist'){
-      adj.sesDist = newVal;
-      if(!adj.sesPace){
-        var act = document.getElementById('act-' + actId);
-        if(act){
-          var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 0;
+    // If user typed the original value → clear adj entry (back to auto)
+    var _origDist = field === 'sesDist'
+      ? (actEl?parseFloat(actEl.getAttribute('data-orig-dist'))||0:0)
+      : (actEl?parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0:0);
+    if(Math.abs(newVal - _origDist) < 0.001){
+      delete adj[field==='sesDist'?'sesDist':'serDist'];
+      delete adj[field==='sesDist'?'sesPace':'serPace'];
+      delete adj[field==='sesDist'?'serDist':'sesDist'];
+      delete adj[field==='sesDist'?'serPace':'sesPace'];
+    } else {
+      if(field === 'sesDist'){
+        adj.sesDist = newVal;
+        if(!adj.sesPace && actEl){
+          var origDur = parseFloat(actEl.getAttribute('data-orig-dur')) || 0;
           if(origDur > 0) adj.sesPace = origDur / newVal;
         }
-      }
-    } else {
-      adj.serDist = newVal;
-      if(!adj.serPace){
-        var act2 = document.getElementById('act-' + actId);
-        if(act2){
-          var origDurSer = parseFloat(act2.getAttribute('data-orig-dur-ser')) || 0;
+      } else {
+        adj.serDist = newVal;
+        if(!adj.serPace && actEl){
+          var origDurSer = parseFloat(actEl.getAttribute('data-orig-dur-ser')) || 0;
           if(origDurSer > 0) adj.serPace = origDurSer / newVal;
         }
       }
@@ -1844,14 +1853,24 @@ function _onPaceEdit(input, actId){
   }
   var act = document.getElementById('act-' + actId);
   if(!act) return;
-  if(field === 'sesPace'){
-    adj.sesPace = paceSecs;
-    var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 0;
-    if(origDur > 0) adj.sesDist = origDur / paceSecs;
+  var _origPace = field === 'sesPace'
+    ? (parseFloat(act.getAttribute('data-orig-dur'))||0) / (parseFloat(act.getAttribute('data-orig-dist'))||1)
+    : (parseFloat(act.getAttribute('data-orig-dur-ser'))||0) / (parseFloat(act.getAttribute('data-orig-dist-ser'))||1);
+  if(Math.abs(paceSecs - _origPace) < 0.5){
+    delete adj[field==='sesPace'?'sesPace':'serPace'];
+    delete adj[field==='sesPace'?'sesDist':'serDist'];
+    delete adj[field==='sesPace'?'serPace':'sesPace'];
+    delete adj[field==='sesPace'?'serDist':'sesDist'];
   } else {
-    adj.serPace = paceSecs;
-    var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
-    if(origDurSer > 0) adj.serDist = origDurSer / paceSecs;
+    if(field === 'sesPace'){
+      adj.sesPace = paceSecs;
+      var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 0;
+      if(origDur > 0) adj.sesDist = origDur / paceSecs;
+    } else {
+      adj.serPace = paceSecs;
+      var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
+      if(origDurSer > 0) adj.serDist = origDurSer / paceSecs;
+    }
   }
   _saveAdj(actId, adj);
   _recalcAdjust(actId);
@@ -1881,19 +1900,24 @@ function _onSpeedEdit(input, actId){
   }
   var act = document.getElementById('act-' + actId);
   if(!act) return;
-  if(field === 'sesSpd'){
-    var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 0;
-    if(origDur > 0){
-      var speedMps = kmh / 3.6;
-      adj.sesDist = speedMps * origDur / 1000;
-      adj.sesPace = origDur / adj.sesDist;
-    }
+  var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 1;
+  var origDist = parseFloat(act.getAttribute('data-orig-dist')) || 1;
+  var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 1;
+  var origDistSer = parseFloat(act.getAttribute('data-orig-dist-ser')) || 1;
+  var _origKmphSes = origDist*1000/origDur*3.6;
+  var _origKmphSer = origDistSer*1000/origDurSer*3.6;
+  var _field = field==='sesSpd';
+  if(Math.abs(kmh-(_field?_origKmphSes:_origKmphSer))<0.01){
+    delete adj.sesDist; delete adj.sesPace; delete adj.serDist; delete adj.serPace;
   } else {
-    var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
-    if(origDurSer > 0){
-      var speedMps2 = kmh / 3.6;
-      adj.serDist = speedMps2 * origDurSer / 1000;
-      adj.serPace = origDurSer / adj.serDist;
+    if(_field && origDur>0){
+      var speedMps = kmh/3.6;
+      adj.sesDist = speedMps*origDur/1000;
+      adj.sesPace = origDur/adj.sesDist;
+    } else if(!_field && origDurSer>0){
+      var speedMps2 = kmh/3.6;
+      adj.serDist = speedMps2*origDurSer/1000;
+      adj.serPace = origDurSer/adj.serDist;
     }
   }
   _saveAdj(actId, adj);
@@ -1957,6 +1981,19 @@ function _applyAdjustUI(actId){
     var ci = act.querySelector('[data-field="serSpd"] input');
     if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
+  // Cross-propagate chips: ser→ses
+  var _cOSD=parseFloat(act.getAttribute('data-orig-dist'))||0;
+  var _cOAD=parseFloat(act.getAttribute('data-orig-dist-ser'))||0;
+  if(adj.serDist>0 && !adj.sesDist && _cOAD>0 && _cOSD>0){
+    var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
+    _setChip('sesDist',_nS.toFixed(2));
+    if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));}
+  }
+  if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
+    var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
+    _setChip('serDist',_nA.toFixed(2));
+    if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));}
+  }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
 
@@ -1968,48 +2005,57 @@ function _recalcAdjust(actId){
 }
 
 function _applyAdjustToSummary(actId, adj, origDurSes, origDurSer){
-  var sesDistCell = document.getElementById(actId + 'ses-dist');
-  var sesSpdCell = document.getElementById(actId + 'ses-spd');
-  var sesPacCell = document.getElementById(actId + 'ses-pac');
-  if(adj.sesDist > 0 && sesDistCell){
-    var elevHtml = sesDistCell.innerHTML;
-    var acumMatch = elevHtml.match(/<div class="elev[^>]*>.*?<\/div>/);
-    var elevPart = acumMatch ? acumMatch[0] : '';
-    sesDistCell.innerHTML = (adj.sesDist.toFixed(2) + ' km') + elevPart;
+  var act=document.getElementById('act-'+actId);
+  var origSesDist=act?parseFloat(act.getAttribute('data-orig-dist'))||0:0;
+  var origActDist=act?parseFloat(act.getAttribute('data-orig-dist-ser'))||0:0;
+  console.log('[ADJ] _applyAdjustToSummary actId='+actId+' adj.sesDist='+adj.sesDist+' adj.serDist='+adj.serDist+' origSesDist='+origSesDist+' origActDist='+origActDist+' origDurSes='+origDurSes+' origDurSer='+origDurSer);
+  var sesDistCell=document.getElementById(actId+'ses-dist');
+  var sesSpdCell=document.getElementById(actId+'ses-spd');
+  var sesPacCell=document.getElementById(actId+'ses-pac');
+  var serDistCell=document.getElementById(actId+'ser-dist');
+  var serSpdCell=document.getElementById(actId+'ser-spd');
+  var serPacCell=document.getElementById(actId+'ser-pac');
+  console.log('[ADJ] sesDistCell='+(sesDistCell?'found':'null')+' serDistCell='+(serDistCell?'found':'null'));
+  function _updDist(cell,v){
+    if(!cell)return;
+    var m=cell.querySelector('.main'),e=cell.innerHTML.match(/<div class="elev[^>]*>.*?<\/div>/);
+    if(m){m.textContent=v.toFixed(2)+' km';}else{cell.innerHTML='<div class="metric"><div class="main">'+v.toFixed(2)+' km</div>'+(e?e[0]:'')+'</div>';}
   }
-  if(adj.sesDist > 0 && origDurSes > 0 && sesSpdCell){
-    var newSpeedSes = adj.sesDist * 1000 / origDurSes;
-    var kmh = (newSpeedSes * 3.6).toFixed(2) + ' km/h';
-    var spdMain = sesSpdCell.querySelector('.main');
-    if(spdMain) spdMain.textContent = kmh;
+  function _updSpd(cell,dist,dur){
+    if(!cell||dur<=0)return;
+    var spd=dist*1000/dur,m=cell.querySelector('.main');
+    if(m)m.textContent=(spd*3.6).toFixed(2)+' km/h';
   }
-  if(adj.sesPace > 0 && sesPacCell){
-    var paceMain = sesPacCell.querySelector('.main');
-    if(paceMain) paceMain.textContent = toRitmo(1000 / adj.sesPace);
+  function _updPac(cell,dist,dur){
+    if(!cell||dur<=0)return;
+    var spd=dist*1000/dur,m=cell.querySelector('.main');
+    if(m)m.textContent=toRitmo(spd);
   }
-  var serDistCell = document.getElementById(actId + 'ser-dist');
-  var serSpdCell = document.getElementById(actId + 'ser-spd');
-  var serPacCell = document.getElementById(actId + 'ser-pac');
-  if(adj.serDist > 0 && serDistCell){
-    var elevHtml2 = serDistCell.innerHTML;
-    var acumMatch2 = elevHtml2.match(/<div class="elev[^>]*>.*?<\/div>/);
-    var elevPart2 = acumMatch2 ? acumMatch2[0] : '';
-    var mainEl = serDistCell.querySelector('.main');
-    if(mainEl){
-      mainEl.textContent = adj.serDist.toFixed(2) + ' km';
-    } else {
-      serDistCell.innerHTML = '<div class="metric"><div class="main">' + adj.serDist.toFixed(2) + ' km</div>' + elevPart2 + '</div>';
-    }
+  if(adj.sesDist>0){
+    _updDist(sesDistCell,adj.sesDist);
+    if(origDurSes>0){_updSpd(sesSpdCell,adj.sesDist,origDurSes);_updPac(sesPacCell,adj.sesDist,origDurSes);}
+  }else if(adj.serDist>0&&origActDist>0&&origSesDist>0){
+    var dS=adj.serDist-origActDist,newSes=origSesDist+dS;
+    console.log('[ADJ] cross-propagate ser→ses dS='+dS+' newSes='+newSes.toFixed(2));
+    _updDist(sesDistCell,newSes);
+    if(origDurSes>0){_updSpd(sesSpdCell,newSes,origDurSes);_updPac(sesPacCell,newSes,origDurSes);}
   }
-  if(adj.serDist > 0 && origDurSer > 0 && serSpdCell){
-    var newSpeedSer = adj.serDist * 1000 / origDurSer;
-    var kmh2 = (newSpeedSer * 3.6).toFixed(2) + ' km/h';
-    var spdMain2 = serSpdCell.querySelector('.main');
-    if(spdMain2) spdMain2.textContent = kmh2;
+  if(adj.sesPace>0&&sesPacCell){
+    var pm=sesPacCell.querySelector('.main');
+    if(pm)pm.textContent=toRitmo(1000/adj.sesPace);
   }
-  if(adj.serPace > 0 && serPacCell){
-    var paceMain2 = serPacCell.querySelector('.main');
-    if(paceMain2) paceMain2.textContent = toRitmo(1000 / adj.serPace);
+  if(adj.serDist>0){
+    _updDist(serDistCell,adj.serDist);
+    if(origDurSer>0){_updSpd(serSpdCell,adj.serDist,origDurSer);_updPac(serPacCell,adj.serDist,origDurSer);}
+  }else if(adj.sesDist>0&&origSesDist>0&&origActDist>0){
+    var dSe=adj.sesDist-origSesDist,newAct=origActDist+dSe;
+    console.log('[ADJ] cross-propagate ses→ser dSe='+dSe+' newAct='+newAct.toFixed(2));
+    _updDist(serDistCell,newAct);
+    if(origDurSer>0){_updSpd(serSpdCell,newAct,origDurSer);_updPac(serPacCell,newAct,origDurSer);}
+  }
+  if(adj.serPace>0&&serPacCell){
+    var pm2=serPacCell.querySelector('.main');
+    if(pm2)pm2.textContent=toRitmo(1000/adj.serPace);
   }
 }
 /* ── INLINE LAP SPEED/PACE/DIST/TIME EDIT (click to edit, green indicator) ── */
@@ -4262,6 +4308,7 @@ function render(){
   // Reset global zone-range lookup so stale data from a prior render can't bleed in
   Object.keys(_zonaRangos).forEach(k=>delete _zonaRangos[k]);
   const raw=document.getElementById('json-input').value.trim();
+  window._dataRawHash=_dataHash(raw);
   const errEl=document.getElementById('error-msg');
   errEl.style.display='none';
   if(!raw){errEl.textContent='Carga un archivo primero.';errEl.style.display='block';return;}
