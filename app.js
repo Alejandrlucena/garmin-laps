@@ -115,10 +115,12 @@ function _loadAdj(actId){
   if(window._showOriginal) return {};
   try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
 }
-function _toggleOriginalView(){
-  window._showOriginal=!window._showOriginal;
-  var btn=document.getElementById('btn-toggle-original');
-  if(btn)btn.textContent=window._showOriginal?'Original':'Ajustado';
+function _setViewMode(mode){
+  window._showOriginal=mode==='original';
+  ['personalizado','original'].forEach(function(m){
+    var b=document.getElementById('btn-view-'+m);
+    if(b)b.classList.toggle('active',m===mode);
+  });
   document.querySelectorAll('.actividad').forEach(function(act){
     if(window._showOriginal)act.classList.remove('editing-on');
     var id=act.id.replace('act-','');
