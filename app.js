@@ -1916,29 +1916,46 @@ function _applyAdjustUI(actId){
   var origDurSes = parseFloat(act.getAttribute('data-orig-dur')) || 0;
   var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
 
+  function _setChip(field, val){
+    var i = act.querySelector('[data-field="'+field+'"] input');
+    if(i) i.value = val;
+  }
+
   if(adj.sesDist > 0){
-    var i = act.querySelector('[data-field="sesDist"] input');
-    if(i) i.value = adj.sesDist.toFixed(2);
+    _setChip('sesDist', adj.sesDist.toFixed(2));
+  } else {
+    var ci = act.querySelector('[data-field="sesDist"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   if(adj.sesPace){
-    var i = act.querySelector('[data-field="sesPace"] input');
-    if(i) i.value = _secsToPaceStr(adj.sesPace);
+    _setChip('sesPace', _secsToPaceStr(adj.sesPace));
+  } else {
+    var ci = act.querySelector('[data-field="sesPace"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   if(adj.serDist > 0){
-    var i = act.querySelector('[data-field="serDist"] input');
-    if(i) i.value = adj.serDist.toFixed(2);
+    _setChip('serDist', adj.serDist.toFixed(2));
+  } else {
+    var ci = act.querySelector('[data-field="serDist"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   if(adj.serPace){
-    var i = act.querySelector('[data-field="serPace"] input');
-    if(i) i.value = _secsToPaceStr(adj.serPace);
+    _setChip('serPace', _secsToPaceStr(adj.serPace));
+  } else {
+    var ci = act.querySelector('[data-field="serPace"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   if(adj.sesDist > 0 && origDurSes > 0){
-    var i = act.querySelector('[data-field="sesSpd"] input');
-    if(i) i.value = (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2);
+    _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2));
+  } else {
+    var ci = act.querySelector('[data-field="sesSpd"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   if(adj.serDist > 0 && origDurSer > 0){
-    var i = act.querySelector('[data-field="serSpd"] input');
-    if(i) i.value = (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2);
+    _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2));
+  } else {
+    var ci = act.querySelector('[data-field="serSpd"] input');
+    if(ci && ci.dataset.orig) ci.value = ci.dataset.orig;
   }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
@@ -2692,6 +2709,8 @@ var allR=[];
   var _adjPaceSes = _adj.sesPace || null;
   var _adjDistSer = (_adj.serDist > 0) ? _adj.serDist : totalDistSer;
   var _adjPaceSer = _adj.serPace || null;
+  var _origAccSesPace = totalDistSes > 0 && totalDurSes > 0 ? _secsToPaceStr(totalDurSes / totalDistSes) : '';
+  var _origAccSerPace = totalDistSer > 0 && totalDurSer > 0 ? _secsToPaceStr(totalDurSer / totalDistSer) : '';
   var avgSpeedSer=(totalDistSer>0&&totalDurSer>0)?totalDistSer*1000/totalDurSer:(activeOnlyArr.length?timeAvg(activeOnlyArr,function(r){return r.speed;}):0);
   var avgKmhSer=avgSpeedSer?toKmh(avgSpeedSer)+' km/h':'—';
   var avgRSSer=avgSpeedSer?ritmoSecs(avgSpeedSer):null;
@@ -3332,7 +3351,7 @@ var allR=[];
     + '<div class="stat-chip"><span class="stat-lbl">Tiempo sesión</span><span class="stat-val">'+fmtDur(totalSecs)+'</span></div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesDist">'
       + '<span class="stat-edit-unit">Dist</span>'
-      + '<input type="text" value="'+_sesDistInput+'" '
+      + '<input type="text" value="'+_sesDistInput+'" data-orig="'+(totalDistSes?totalDistSes.toFixed(2):'')+'" '
       + 'onfocus="this.select()" onblur="_onDistEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
       + 'placeholder="km">'
@@ -3340,14 +3359,14 @@ var allR=[];
     + '</div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesPace">'
       + '<span class="stat-edit-unit">Ritmo</span>'
-      + '<input type="text" value="'+_sesPaceInput+'" '
+      + '<input type="text" value="'+_sesPaceInput+'" data-orig="'+_origAccSesPace+'" '
       + 'onfocus="this.select()" onblur="_onPaceEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
       + 'placeholder="m:ss">'
     + '</div>'
     + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="sesSpd">'
       + '<span class="stat-edit-unit">Vel</span>'
-      + '<input type="text" value="'+_sesSpdInput+'" '
+      + '<input type="text" value="'+_sesSpdInput+'" data-orig="'+(totalDistSes>0&&totalDurSes>0?(totalDistSes*1000/totalDurSes*3.6).toFixed(2):'')+'" '
       + 'onfocus="this.select()" onblur="_onSpeedEdit(this,\''+_actId+'\')" '
       + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
       + 'placeholder="km/h">'
@@ -3359,7 +3378,7 @@ var allR=[];
         + '<div class="stat-chip"><span class="stat-lbl">Tiempo activo</span><span class="stat-val">'+fmtDur(activeSecs)+'</span></div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serDist">'
           + '<span class="stat-edit-unit">Dist.act</span>'
-          + '<input type="text" value="'+_serDistInput+'" '
+          + '<input type="text" value="'+_serDistInput+'" data-orig="'+(totalDistSer?totalDistSer.toFixed(2):'')+'" '
           + 'onfocus="this.select()" onblur="_onDistEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
           + 'placeholder="km">'
@@ -3367,14 +3386,14 @@ var allR=[];
         + '</div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serPace">'
           + '<span class="stat-edit-unit">Rit.act</span>'
-          + '<input type="text" value="'+_serPaceInput+'" '
+          + '<input type="text" value="'+_serPaceInput+'" data-orig="'+_origAccSerPace+'" '
           + 'onfocus="this.select()" onblur="_onPaceEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
           + 'placeholder="m:ss">'
         + '</div>'
         + '<div class="stat-chip stat-editable" data-act="'+_actId+'" data-field="serSpd">'
           + '<span class="stat-edit-unit">Vel.act</span>'
-          + '<input type="text" value="'+_serSpdInput+'" '
+          + '<input type="text" value="'+_serSpdInput+'" data-orig="'+(totalDistSer>0&&totalDurSer>0?(totalDistSer*1000/totalDurSer*3.6).toFixed(2):'')+'" '
           + 'onfocus="this.select()" onblur="_onSpeedEdit(this,\''+_actId+'\')" '
           + 'onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}" '
           + 'placeholder="km/h">'
