@@ -4345,6 +4345,7 @@ function render(){
       document.getElementById('btn-share').style.display='inline-flex';
       const _lb=document.getElementById('btn-link-img');_lb.style.display='inline-flex';_lb.disabled=false;
       document.getElementById('filter-bar').classList.add('visible');
+      document.getElementById('toggle-bar').classList.add('visible');
       _showCompactBar(true); _updateCompactResetBtn();
       _updateClearBtnState();
       if(window.innerWidth<900)setTimeout(()=>document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'}),100);
@@ -4390,6 +4391,7 @@ function render(){
   _linkBtn.style.display='inline-flex';
   _linkBtn.disabled=false;
   document.getElementById('filter-bar').classList.add('visible');
+  document.getElementById('toggle-bar').classList.add('visible');
   _showCompactBar(true);
   _updateCompactResetBtn();
   _updateClearBtnState();
@@ -4901,6 +4903,7 @@ document.getElementById('btn-copy-img').style.display='none';
 document.getElementById('btn-link-img').style.display='none';
 document.getElementById('btn-share').style.display='none';
   document.getElementById('filter-bar').classList.remove('visible');
+  document.getElementById('toggle-bar').classList.remove('visible');
   document.getElementById('filter-input').value='';
   document.getElementById('error-msg').style.display='none';
   _showCompactBar(false);
