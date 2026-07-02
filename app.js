@@ -111,9 +111,33 @@ document.addEventListener('click', function(e){
 }, true);
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjKey(actId){ return 'garmin-adjust-' + actId; }
+function _adjServerUrl(){
+  var p=window.location.port;
+  if(p==='8080'||p==='8000')return'http://localhost:8000';
+  return window.location.origin;
+}
 function _loadAdj(actId){
   if(window._showOriginal) return {};
-  try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+  // Try server first, fall back to localStorage
+  var _ls=function(){
+    try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+  };
+  try{
+    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
+    var x=new XMLHttpRequest();
+    x.open('GET',url,false);
+    x.send();
+    if(x.status===200){var d=JSON.parse(x.responseText);if(d&&Object.keys(d).length)return d;}
+  }catch(e){}
+  return _ls();
+}
+function _saveAdj(actId, adj){
+  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
+  // Fire-and-forget server save (async, don't block)
+  try{
+    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
+  }catch(e){}
 }
 function _setViewMode(mode){
   window._showOriginal=mode==='original';
