@@ -113,7 +113,6 @@ document.addEventListener('click', function(e){
 function _adjNorm(actId){ return String(actId).replace(/^act-/,''); }
 function _adjKey(actId){ return 'garmin-adjust-act-' + _adjNorm(actId); }
 function _adjServerUrl(){
-  // Use configured connector URL if available (e.g., Railway server)
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
   if(configured) return configured;
   var p=window.location.port;
@@ -122,17 +121,18 @@ function _adjServerUrl(){
 }
 function _loadAdj(actId){
   if(window._showOriginal) return {};
-  try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
+  try{ var v = localStorage.getItem(_adjKey(actId)); if(v) return JSON.parse(v); } catch(e){}
+  return null;
 }
 function _saveAdj(actId, adj){
-  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
-  // Fire-and-forget server save (async, don't block)
+  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
+    console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
+  }
   try{
     var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
   }catch(e){}
 }
-// Async background sync: pull adjustments from server into localStorage
 function _syncAdjFromServer(actId){
   try{
     var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
@@ -143,6 +143,14 @@ function _syncAdjFromServer(actId){
       }
     }).catch(function(){});
   }catch(e){}
+}
+// Force sync from server even if localStorage has data (call after render)
+function _forceSyncAllAdjFromServer(){
+  document.querySelectorAll('.actividad').forEach(function(act){
+    var id = act.id.replace('act-','');
+    if(!id) return;
+    _syncAdjFromServer(id);
+  });
 }
 // Auto-save every 5s: read stat chip inputs and persist any changes
 function _autoSaveTick(){
@@ -2033,6 +2041,9 @@ function _applyAdjustUI(actId){
   var origDurSes = parseFloat(act.getAttribute('data-orig-dur')) || 0;
   var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
 
+  // Debug badge
+  console.log('[ADJ] _applyAdjustUI actId='+actId+' hasAdj='+(adj.sesDist>0?'sesDist='+adj.sesDist:'none')+' localStorage key='+_adjKey(actId)+' exists='+!!localStorage.getItem(_adjKey(actId)));
+
   function _setChip(field, val){
     var i = act.querySelector('[data-field="'+field+'"] input');
     if(i) i.value = val;
@@ -2044,18 +2055,25 @@ function _applyAdjustUI(actId){
     if(ci && ci.dataset.orig) _setChip(field, ci.dataset.orig);
   }
 
-  if(adj.sesDist > 0) _setChip('sesDist', adj.sesDist.toFixed(2));
-  else _restoreOrig('sesDist');
-  if(adj.sesPace) _setChip('sesPace', _secsToPaceStr(adj.sesPace));
-  else _restoreOrig('sesPace');
-  if(adj.serDist > 0) _setChip('serDist', adj.serDist.toFixed(2));
-  else _restoreOrig('serDist');
-  if(adj.serPace) _setChip('serPace', _secsToPaceStr(adj.serPace));
-  else _restoreOrig('serPace');
-  if(adj.sesDist > 0 && origDurSes > 0) _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2));
-  else _restoreOrig('sesSpd');
-  if(adj.serDist > 0 && origDurSer > 0) _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2));
-  else _restoreOrig('serSpd');
+  function _markAdjChip(field, hasAdj){
+    var chip = act.querySelector('[data-field="'+field+'"]');
+    if(chip){
+      chip.classList.toggle('adj-active', hasAdj);
+    }
+  }
+
+  if(adj.sesDist > 0){ _setChip('sesDist', adj.sesDist.toFixed(2)); _markAdjChip('sesDist', true); }
+  else { _restoreOrig('sesDist'); _markAdjChip('sesDist', false); }
+  if(adj.sesPace){ _setChip('sesPace', _secsToPaceStr(adj.sesPace)); _markAdjChip('sesPace', true); }
+  else { _restoreOrig('sesPace'); _markAdjChip('sesPace', false); }
+  if(adj.serDist > 0){ _setChip('serDist', adj.serDist.toFixed(2)); _markAdjChip('serDist', true); }
+  else { _restoreOrig('serDist'); _markAdjChip('serDist', false); }
+  if(adj.serPace){ _setChip('serPace', _secsToPaceStr(adj.serPace)); _markAdjChip('serPace', true); }
+  else { _restoreOrig('serPace'); _markAdjChip('serPace', false); }
+  if(adj.sesDist > 0 && origDurSes > 0){ _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2)); _markAdjChip('sesSpd', true); }
+  else { _restoreOrig('sesSpd'); _markAdjChip('sesSpd', false); }
+  if(adj.serDist > 0 && origDurSer > 0){ _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2)); _markAdjChip('serSpd', true); }
+  else { _restoreOrig('serSpd'); _markAdjChip('serSpd', false); }
   // Cross-propagate chips: ser→ses
   var _cOSD=parseFloat(act.getAttribute('data-orig-dist'))||0;
   var _cOAD=parseFloat(act.getAttribute('data-orig-dist-ser'))||0;
@@ -2063,11 +2081,13 @@ function _applyAdjustUI(actId){
      var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
      _setChip('sesDist',_nS.toFixed(2));
      if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));_setChip('sesPace',_secsToPaceStr(origDurSes/_nS));}
+     _markAdjChip('sesDist', true); _markAdjChip('sesSpd', true); _markAdjChip('sesPace', true);
    }
    if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
      var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
      _setChip('serDist',_nA.toFixed(2));
      if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',_secsToPaceStr(origDurSer/_nA));}
+     _markAdjChip('serDist', true); _markAdjChip('serSpd', true); _markAdjChip('serPace', true);
    }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }

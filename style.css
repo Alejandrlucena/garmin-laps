@@ -650,6 +650,9 @@ tr:not(.group-header):not(.phase-header):not(.custom-group-header):not(.avg-row)
 .actividad:not(.editing-on) .stat-editable input{display:none}
 .actividad:not(.editing-on) .stat-editable .stat-edit-unit{font-size:9px;color:#454a55;
   font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.adj-active{border-color:#fbbf24 !important}
+.actividad:not(.editing-on) .adj-active{background:#1a1508;border-color:#fbbf24 !important}
+.adj-active .stat-statval{color:#fbbf24 !important}
 
 /* ── PHASE FILTER PILLS ── */
 .phase-filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
