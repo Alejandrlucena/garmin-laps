@@ -2040,10 +2040,6 @@ function _applyAdjustUI(actId){
   var adj = _loadAdj(actId) || {};
   var origDurSes = parseFloat(act.getAttribute('data-orig-dur')) || 0;
   var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
-
-  // Debug badge
-  console.log('[ADJ] _applyAdjustUI actId='+actId+' hasAdj='+(adj.sesDist>0?'sesDist='+adj.sesDist:'none')+' localStorage key='+_adjKey(actId)+' exists='+!!localStorage.getItem(_adjKey(actId)));
-
   function _setChip(field, val){
     var i = act.querySelector('[data-field="'+field+'"] input');
     if(i) i.value = val;
@@ -2055,25 +2051,18 @@ function _applyAdjustUI(actId){
     if(ci && ci.dataset.orig) _setChip(field, ci.dataset.orig);
   }
 
-  function _markAdjChip(field, hasAdj){
-    var chip = act.querySelector('[data-field="'+field+'"]');
-    if(chip){
-      chip.classList.toggle('adj-active', hasAdj);
-    }
-  }
-
-  if(adj.sesDist > 0){ _setChip('sesDist', adj.sesDist.toFixed(2)); _markAdjChip('sesDist', true); }
-  else { _restoreOrig('sesDist'); _markAdjChip('sesDist', false); }
-  if(adj.sesPace){ _setChip('sesPace', _secsToPaceStr(adj.sesPace)); _markAdjChip('sesPace', true); }
-  else { _restoreOrig('sesPace'); _markAdjChip('sesPace', false); }
-  if(adj.serDist > 0){ _setChip('serDist', adj.serDist.toFixed(2)); _markAdjChip('serDist', true); }
-  else { _restoreOrig('serDist'); _markAdjChip('serDist', false); }
-  if(adj.serPace){ _setChip('serPace', _secsToPaceStr(adj.serPace)); _markAdjChip('serPace', true); }
-  else { _restoreOrig('serPace'); _markAdjChip('serPace', false); }
-  if(adj.sesDist > 0 && origDurSes > 0){ _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2)); _markAdjChip('sesSpd', true); }
-  else { _restoreOrig('sesSpd'); _markAdjChip('sesSpd', false); }
-  if(adj.serDist > 0 && origDurSer > 0){ _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2)); _markAdjChip('serSpd', true); }
-  else { _restoreOrig('serSpd'); _markAdjChip('serSpd', false); }
+  if(adj.sesDist > 0) _setChip('sesDist', adj.sesDist.toFixed(2));
+  else _restoreOrig('sesDist');
+  if(adj.sesPace) _setChip('sesPace', _secsToPaceStr(adj.sesPace));
+  else _restoreOrig('sesPace');
+  if(adj.serDist > 0) _setChip('serDist', adj.serDist.toFixed(2));
+  else _restoreOrig('serDist');
+  if(adj.serPace) _setChip('serPace', _secsToPaceStr(adj.serPace));
+  else _restoreOrig('serPace');
+  if(adj.sesDist > 0 && origDurSes > 0) _setChip('sesSpd', (adj.sesDist * 1000 / origDurSes * 3.6).toFixed(2));
+  else _restoreOrig('sesSpd');
+  if(adj.serDist > 0 && origDurSer > 0) _setChip('serSpd', (adj.serDist * 1000 / origDurSer * 3.6).toFixed(2));
+  else _restoreOrig('serSpd');
   // Cross-propagate chips: ser→ses
   var _cOSD=parseFloat(act.getAttribute('data-orig-dist'))||0;
   var _cOAD=parseFloat(act.getAttribute('data-orig-dist-ser'))||0;
@@ -2081,13 +2070,11 @@ function _applyAdjustUI(actId){
      var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
      _setChip('sesDist',_nS.toFixed(2));
      if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));_setChip('sesPace',_secsToPaceStr(origDurSes/_nS));}
-     _markAdjChip('sesDist', true); _markAdjChip('sesSpd', true); _markAdjChip('sesPace', true);
    }
    if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
      var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
      _setChip('serDist',_nA.toFixed(2));
      if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',_secsToPaceStr(origDurSer/_nA));}
-     _markAdjChip('serDist', true); _markAdjChip('serSpd', true); _markAdjChip('serPace', true);
    }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
@@ -2498,10 +2485,10 @@ function _recalcAvgRows(actId){
     return /^(calentamiento|warmup|enfriamiento|cooldown|recuperaci[oó]n)$/i.test(lbl);
   }
   var actR=allR.filter(function(tr){return tr.getAttribute('data-active')==='1'&&!_isWarmupCooldownTr(tr);});
-  var totDur=sumA(allR,'data-dur'),actDur=sumA(actR,'data-dur');
-  var totDist=sumA(allR,'data-dist'),actDist=sumA(actR,'data-dist');
+  var totDur=sumA(trs,'data-dur'),actDur=sumA(actR,'data-dur');
+  var totDist=sumA(trs,'data-dist'),actDist=sumA(actR,'data-dist');
   // Match initial render: "desnivel acumulado" = net (gain - loss) across visible rows.
-  var totDsn=sumA(allR,'data-dsn'),actDsn=sumA(actR,'data-dsn');
+  var totDsn=sumA(trs,'data-dsn'),actDsn=sumA(actR,'data-dsn');
   var sAll=allR.filter(function(tr){return gF(tr,'data-speed')>=0.01;}),sAct=actR.filter(function(tr){return gF(tr,'data-speed')>=0.01;});
   var avgSpdSes=sAll.length?tw(sAll,'data-speed'):0,avgSpdSer=sAct.length?tw(sAct,'data-speed'):0;
   var fAll=allR.filter(function(tr){return gF(tr,'data-fcm')>=1;}),fAct=actR.filter(function(tr){return gF(tr,'data-fcm')>=1;});
@@ -2814,14 +2801,14 @@ var allR=[];
       }
     });
   }
-  // allR sin residuales — base para todos los cálculos de resumen
+  // allR sin residuales — solo para ritmo/velocidad (excluye descansos)
   var _allRNoRes=allR.filter(function(r){return!_residualSet.has(r);});
-  // Media sesión: warmup + series + descansos + cooldown, sin residuales
+  // Media sesión: warmup + series + descansos + cooldown, TODO incluido para tiempo/dist total
   var validAllR=_allRNoRes.filter(function(r){return r.speed>=0.01;});
   var validAllRWithHR=_allRNoRes.filter(function(r){return r.fc_med>=0.01;});
   var maxFCmVal=validAllRWithHR.length?Math.max.apply(null,validAllRWithHR.map(function(r){return r.fc_med||0;})):0;
-  var totalDurSes=sumDur(_allRNoRes);
-  var totalDistSes=sumDist(_allRNoRes);
+  var totalDurSes=sumDur(allR);
+  var totalDistSes=sumDist(allR);
   var avgSpeedSes=(totalDistSes>0&&totalDurSes>0)?totalDistSes*1000/totalDurSes:(validAllR.length?timeAvg(validAllR,function(r){return r.speed;}):0);
   var avgKmhSes=avgSpeedSes?toKmh(avgSpeedSes)+' km/h':'—';
   var avgRSSes=avgSpeedSes?ritmoSecs(avgSpeedSes):null;
@@ -3413,13 +3400,13 @@ var allR=[];
     }
   }
 
-  // Calcular tiempo total y tiempo activo
-  var _totalSecsRaw=_allRNoRes.reduce(function(a,r){return a+rowDur(r);},0);
+  // Calcular tiempo total (todas las filas) y tiempo activo (solo trabajo efectivo)
+  var _totalSecsRaw=allR.reduce(function(a,r){return a+rowDur(r);},0);
   var _activeSecsRaw=activeOnlyArr.reduce(function(a,r){return a+rowDur(r);},0);
   var totalSecs=Math.round(_totalSecsRaw);
   var activeSecs=Math.round(_activeSecsRaw);
   // Si no hay dur_secs, estimar desde dist/speed
-  if(!totalSecs)totalSecs=_allRNoRes.reduce(function(a,r){return a+(r.speed>0?Math.round(r.dist_km*1000/r.speed):0);},0);
+  if(!totalSecs)totalSecs=allR.reduce(function(a,r){return a+(r.speed>0?Math.round(r.dist_km*1000/r.speed):0);},0);
   if(!activeSecs)activeSecs=activeOnlyArr.reduce(function(a,r){return a+(r.speed>0?Math.round(r.dist_km*1000/r.speed):0);},0);
 
   var distSes='<div class="metric"><div class="main">'+(d.distancia_total||'—')+'</div>'+_acumHtml(desnivelAcum)+'</div>';
