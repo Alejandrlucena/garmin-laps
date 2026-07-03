@@ -203,6 +203,9 @@ function _openAdjViewer(){
   if(existing){ existing.style.display='block'; _refreshAdjViewer(); return; }
   var ov=document.createElement('div'); ov.id='adj-viewer-overlay';
   ov.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
+  var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
+  document.addEventListener('keydown',_adjEsc);
   ov.innerHTML='<div style="max-width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Ajustes guardados</span>'
@@ -251,14 +254,16 @@ function _refreshAdjViewer(){
       +'</div>';
     files.forEach(function(item){
       var d=item.data||{};
-      var name=d._activityName||item.id;
-      var sub=item.id !== name ? item.id : '';
+      var raw=d._activityName||'';
+      var parts=raw.split('\n').filter(Boolean);
+      var title=parts[0]||item.id;
+      var subtitle=parts.length>1?parts.slice(1).join(' · '):(raw?item.id:'');
       var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'';
       var sizeStr=item.size?_fmtBytes(item.size):'';
       h+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
         +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:13px;font-weight:600;color:#eaeaea">'+escHtml(name)+'</div>'
-        +(sub?'<div style="font-size:10px;color:#505870;margin-top:1px">'+escHtml(sub)+'</div>':'')
+        +'<div style="font-size:13px;font-weight:600;color:#eaeaea">'+escHtml(title)+'</div>'
+        +(subtitle?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(subtitle)+'</div>':'')
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
         +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span>'
@@ -7630,15 +7635,14 @@ function openConnectorPanel() {
       var _wrap = document.createElement('div');
       _wrap.style.cssText = 'display:flex;align-items:center;gap:6px';
       _hdr.removeChild(_close);
-      _wrap.appendChild(_lk);
-
-      // Almacenamiento button
+      // Almacenamiento button (left of login link)
       var _almBtn=document.createElement('button');
       _almBtn.textContent='Almacenamiento';
       _almBtn.className='connector-login-btn';
       _almBtn.style.cssText='font-size:11px;padding:2px 10px;cursor:pointer;color:#8890a0;border-color:#2a2d35';
       _almBtn.onclick=_openAdjViewer;
       _wrap.appendChild(_almBtn);
+      _wrap.appendChild(_lk);
       _wrap.appendChild(_close);
       _hdr.appendChild(_wrap);
     }
