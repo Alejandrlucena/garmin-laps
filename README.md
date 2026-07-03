@@ -168,7 +168,7 @@ Junto al botón **✏️** (modo edición) hay dos botones: **Personalizado** y 
 - Cada cambio tiene **deshacer/rehacer** (`Cmd/Ctrl+Z`)
 - Los ajustes se guardan automáticamente en el navegador (localStorage) **y** en el servidor Railway (`/adj/{act_id}`) si está configurado
 - Al recargar la página, los valores ajustados se restauran desde el servidor o desde localStorage
-- Los ajustes persisten por actividad: cada actividad tiene su propio conjunto de valores ajustados, identificados por un hash estable de su contenido
+- Los ajustes persisten por actividad: cada actividad tiene su propio conjunto de valores ajustados, identificados por su `activityId` real
 
 Al pulsar **Original**, las chips vuelven a los valores originales de Garmin sin perder los ajustes — puedes alternar entre ambos modos libremente.
 
@@ -275,10 +275,10 @@ Sin dependencias de servidor. Todo corre en el navegador. Usa:
 
 | Archivo | Propósito |
 |---------|-----------|
-| `index.html` | Shell de la SPA (228 líneas) |
+| `index.html` | Shell de la SPA |
 | `style.css` | Todos los estilos (dark theme, responsive) |
-| `app.js` | Toda la lógica de la aplicación (~9900 líneas) |
-| `fit-parser.js` | Parser de archivos `.fit` (minified) |
+| `app.js` | Toda la lógica de la aplicación |
+| `fit-parser.js` | Parser de archivos `.fit` |
 | `GarminDriveUpload_AppScript.js` | Código para el Google Apps Script de Drive |
 
 ---
