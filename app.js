@@ -118,29 +118,62 @@ function _adjServerUrl(){
 }
 function _loadAdj(actId){
   if(window._showOriginal) return {};
-  // Try server first, fall back to localStorage
-  var _ls=function(){
-    try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
-  };
-  try{
-    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
-    var x=new XMLHttpRequest();
-    x.open('GET',url,false);
-    x.send();
-    if(x.status===200){var d=JSON.parse(x.responseText);if(d&&Object.keys(d).length)return d;}
-  }catch(e){}
-  return _ls();
+  try{ var v = localStorage.getItem(_adjKey(actId)); return v ? JSON.parse(v) : null; } catch(e){ return null; }
 }
 function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
-  // Fire-and-forget server save (async, don't block)
   try{
     var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
   }catch(e){}
 }
+function _syncAdjFromServer(actId){
+  try{
+    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
+    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(d&&typeof d==='object'&&Object.keys(d).length){
+        try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
+        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
+      }
+    }).catch(function(){});
+  }catch(e){}
+}
+// Auto-save every 5s: read stat chip inputs and persist any changes
+function _autoSaveTick(){
+  document.querySelectorAll('.actividad').forEach(function(act){
+    var id=act.id.replace('act-','');
+    if(!id) return;
+    var adj=_loadAdj(id)||{};
+    var changed=false;
+    act.querySelectorAll('.stat-editable').forEach(function(chip){
+      var field=chip.getAttribute('data-field');
+      if(!field) return;
+      var inp=chip.querySelector('input');
+      if(!inp||!inp.value) return;
+      var raw=inp.value.trim();
+      if(!raw) return;
+      if(field==='sesDist'||field==='serDist'){
+        var n=parseFloat(raw);
+        if(n>0&&Math.abs(n-(adj[field]||0))>0.0001){ adj[field]=n; changed=true; }
+      } else if(field==='sesPace'||field==='serPace'){
+        var s=_paceStrToSecs(raw);
+        if(s&&s>0&&Math.abs(s-(adj[field]||0))>0.5){ adj[field]=s; changed=true; }
+      } else if(field==='sesSpd'||field==='serSpd'){
+        var n=parseFloat(raw);
+        if(n>0&&Math.abs(n-(adj[field]||0))>0.01){ adj[field]=n; changed=true; }
+      }
+    });
+    if(changed) _saveAdj(id, adj);
+  });
+}
+// Start auto-save interval
+if(typeof _autoSaveTimer==='undefined'){
+  window._autoSaveTimer=setInterval(_autoSaveTick, 5000);
+}
+
 function _setViewMode(mode){
   window._showOriginal=mode==='original';
+  try{ localStorage.setItem('garmin-view-mode', mode); }catch(e){}
   ['personalizado','original'].forEach(function(m){
     var b=document.getElementById('btn-view-'+m);
     if(b)b.classList.toggle('active',m===mode);
@@ -166,9 +199,6 @@ function _setViewMode(mode){
   });
   var fab=document.getElementById('lap-act-fab');
   if(fab)fab.classList.remove('expanded');
-}
-function _saveAdj(actId, adj){
-  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
 }
 function _paceStrToSecs(val){
   if(!val) return null;
@@ -273,7 +303,10 @@ var _lastParsedList = null;
 function _assignHideKeys(lista){
   var dh=window._dataRawHash||'';
   (lista||[]).forEach(function(act,ai){
-    if(!act._actKey)act._actKey='act'+dh+ai;
+    if(!act._actKey){
+      var stableId=act.activityId||act.activity_id||'';
+      act._actKey=stableId?('act-'+String(stableId).replace(/[^a-zA-Z0-9_-]/g,'_')):('act'+dh+ai);
+    }
     var n=0;
     function mark(row){
       if(!row)return;
@@ -4392,6 +4425,7 @@ function render(){
         document.querySelectorAll('.actividad').forEach(function(act){
           var id=act.id.replace('act-','');
           if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+          if(typeof _syncAdjFromServer==='function') _syncAdjFromServer(id);
         });
       }, 0);
       return;
@@ -4445,11 +4479,12 @@ function render(){
   if(window.innerWidth<900){
     setTimeout(()=>document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'}),100);
   }
-  // Apply saved adjustments to chips after render
+  // Apply saved adjustments to chips after render + sync from server
   setTimeout(function(){
     document.querySelectorAll('.actividad').forEach(function(act){
       var id = act.id.replace('act-','');
       if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+      if(typeof _syncAdjFromServer==='function') _syncAdjFromServer(id);
     });
   }, 0);
 }
@@ -6678,7 +6713,7 @@ function fitToGarminJson(fitData, filename) {
   }
 
   return {
-    activity_id: 'fit_' + Date.now(),
+    activity_id: 'fit_' + ((session.startTime||session.start_time||session.localTimestamp||session.local_timestamp||'').toString().replace(/[^0-9]/g,'')||String(Math.round(totalDist*100)))+'_'+Math.round(totalDist*100),
     activity_name: activityName,
     activity_type: activityType,
     start_time_local: startISO,
@@ -10361,7 +10396,16 @@ document.addEventListener('click', function(e){
   title.addEventListener('blur',_end);
   title.addEventListener('keydown',_key);
 });
-// Init button state on page load
+// Init view mode and button state on page load
+(function(){
+  var savedMode = 'personalizado';
+  try{ var m = localStorage.getItem('garmin-view-mode'); if(m==='original'||m==='personalizado') savedMode = m; }catch(e){}
+  window._showOriginal = savedMode === 'original';
+  ['personalizado','original'].forEach(function(m){
+    var b=document.getElementById('btn-view-'+m);
+    if(b)b.classList.toggle('active', m===savedMode);
+  });
+})();
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', _updateClearBtnState);
 } else {
