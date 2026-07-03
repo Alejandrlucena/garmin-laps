@@ -1,3 +1,5 @@
 .DS_Store
 *.bak
 *.log
+garmin-coach-mcp/
+garmin-laps/
