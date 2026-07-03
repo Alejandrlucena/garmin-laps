@@ -120,7 +120,6 @@ function _adjServerUrl(){
   return window.location.origin;
 }
 function _loadAdj(actId){
-  if(window._showOriginal) return {};
   try{ var v = localStorage.getItem(_adjKey(actId)); if(v) return JSON.parse(v); } catch(e){}
   return null;
 }
@@ -129,32 +128,33 @@ function _saveAdj(actId, adj){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin){ console.warn('[ADJ] no server URL configured, adj only saved locally. Configure connector URL for multi-device sync.'); return; }
+  if(!srv||srv===window.location.origin) return;
   try{
     var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ] POST to', url, adj);
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
       if(r.ok) console.log('[ADJ] POST ok', actId);
-      else console.warn('[ADJ] POST failed', r.status, r.statusText);
-    }).catch(function(e){ console.warn('[ADJ] POST error', e); });
-  }catch(e){ console.warn('[ADJ] POST exception', e); }
+    }).catch(function(){});
+  }catch(e){}
 }
 function _syncAdjFromServer(actId){
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin) return;
-  try{
-    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ] GET from', url);
-    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
-      if(d&&typeof d==='object'&&Object.keys(d).length){
-        console.log('[ADJ] server has data for', actId, d);
-        try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
-        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
-      } else {
-        console.log('[ADJ] no server data for', actId);
-      }
-    }).catch(function(e){ console.warn('[ADJ] GET error', e); });
-  }catch(e){ console.warn('[ADJ] GET exception', e); }
+  var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+  fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
+    if(d&&typeof d==='object'&&Object.keys(d).length){
+      try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
+      if(typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
+    }
+  }).catch(function(){});
+}
+// Auto-sync all known activites from server (runs at page load and after render)
+function _adjAutoSync(){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return;
+  document.querySelectorAll('.actividad').forEach(function(act){
+    var id=act.id.replace('act-','');
+    if(id) _syncAdjFromServer(id);
+  });
 }
 function _syncAllAdjFromServer(){
   var srv=_adjServerUrl();
@@ -173,9 +173,8 @@ function _syncAllAdjFromServer(){
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(d&&typeof d==='object'&&Object.keys(d).length){
         try{ localStorage.setItem(_adjKey(id), JSON.stringify(d)); }catch(e){}
-        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(id);
-        count++;
-      }
+        if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+        count++;      }
     }).catch(function(){});
   });
   setTimeout(function(){
@@ -202,23 +201,6 @@ function _injectAdjSyncSection(){
     +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
     +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>';
   container.parentNode.appendChild(div);
-}
-function _syncAdjFromServer(actId){
-  var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin) return; // no server configured
-  try{
-    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ] GET from', url);
-    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
-      if(d&&typeof d==='object'&&Object.keys(d).length){
-        console.log('[ADJ] server has data for', actId, d);
-        try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
-        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
-      } else {
-        console.log('[ADJ] no server data for', actId);
-      }
-    }).catch(function(e){ console.warn('[ADJ] GET error', e); });
-  }catch(e){ console.warn('[ADJ] GET exception', e); }
 }
 // Diagnostic: dump adj for current activities from server (open console and call this)
 function _dumpServerAdj(){
@@ -10426,9 +10408,13 @@ if (typeof window._initLapEditAll === 'function') {
 }
 // Ensure settings/connector panels exist (for loading from restored HTML)
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(_ensurePanels, 0); });
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(_ensurePanels, 0);
+    setTimeout(function(){ if(typeof _adjAutoSync==='function') _adjAutoSync(); }, 0);
+  });
 } else {
   setTimeout(_ensurePanels, 0);
+  setTimeout(function(){ if(typeof _adjAutoSync==='function') _adjAutoSync(); }, 0);
 }
 // ── Auto-import config from shared link ──
 (function(){
