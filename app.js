@@ -192,15 +192,16 @@ function _updateAdjSyncStatusOnOpen(){
   _updateAdjSyncStatus('Servidor: '+srv,'#4ae85a');
 }
 function _injectAdjSyncSection(){
-  if(document.getElementById('adj-sync-status')) return;
-  var container=document.getElementById('cfg-saved-users');
-  if(!container) return;
+  if(document.getElementById('connector-adj-sync')) return;
+  var container=document.getElementById('connector-list');
+  if(!container||!container.parentNode) return;
   var div=document.createElement('div');
+  div.id='connector-adj-sync';
   div.style.cssText='margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35';
   div.innerHTML='<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
     +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
     +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>';
-  container.parentNode.appendChild(div);
+  container.parentNode.insertBefore(div, container.nextSibling);
 }
 // Diagnostic: dump adj for current activities from server (open console and call this)
 function _dumpServerAdj(){
@@ -7555,6 +7556,8 @@ function openConnectorPanel() {
       + '<span style="color:#505870">Necesitas <a href="https://github.com/Alejandrlucena/garmin-coach-mcp" '
       + 'target="_blank" style="color:#4a6fa5">garmin-coach-mcp</a> desplegado en Railway '
       + 'o en local (<code style="color:#666">http://localhost:8000</code>).</span></div>';
+    _injectAdjSyncSection();
+    _updateAdjSyncStatusOnOpen();
     return;
   }
   if (loginLink) { loginLink.style.display = ''; _setConnectorLoginState(_connectorLoginState); }
@@ -7570,9 +7573,19 @@ function openConnectorPanel() {
     searchWrap.style.display = 'block';
     if (typeFilter) typeFilter.style.display = 'flex';
     _renderConnectorActs(toShow.filter(_connectorTypeMatch));
-    if (!_connectorRecentReady) _connectorStartupPrefetch(); // refresca si aún no acabó
+    if (!_connectorRecentReady) _connectorStartupPrefetch();
     _prefetchConnectorBroad();
     _startConnectorPolling();
+    _injectAdjSyncSection();
+    _updateAdjSyncStatusOnOpen();
+    return;
+  }
+
+  _prefetchConnectorBroad();
+  _loadConnectorByDate();
+  _startConnectorPolling();
+  _injectAdjSyncSection();
+  _updateAdjSyncStatusOnOpen();
     return;
   }
 
@@ -7868,8 +7881,6 @@ function openSettings() {
   document.getElementById('cfg-server').value   = server;
   document.getElementById('cfg-drive').value    = drive;
   _refreshSavedUsersChips();
-  _injectAdjSyncSection();
-  _updateAdjSyncStatusOnOpen();
   document.getElementById('settings-overlay').style.display = 'block';
   _updateClearBtnState();
   if (server && !drive) settingsLoadFromServer(true);
