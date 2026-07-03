@@ -7633,11 +7633,12 @@ function openConnectorPanel() {
       _wrap.appendChild(_lk);
 
       // Almacenamiento button
-      var _syncBtn=document.createElement('button');
-      _syncBtn.textContent='Almacenamiento';
-      _syncBtn.style.cssText='background:none;border:none;color:#8890a0;font-size:12px;cursor:pointer;padding:0 6px;white-space:nowrap';
-      _syncBtn.onclick=_openAdjViewer;
-      _wrap.appendChild(_syncBtn);
+      var _almBtn=document.createElement('button');
+      _almBtn.textContent='Almacenamiento';
+      _almBtn.className='connector-login-btn';
+      _almBtn.style.cssText='font-size:11px;padding:2px 10px;cursor:pointer;color:#8890a0;border-color:#2a2d35';
+      _almBtn.onclick=_openAdjViewer;
+      _wrap.appendChild(_almBtn);
       _wrap.appendChild(_close);
       _hdr.appendChild(_wrap);
     }
