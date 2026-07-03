@@ -128,21 +128,97 @@ function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin){ console.warn('[ADJ] no server URL configured, adj only saved locally. Configure connector URL for multi-device sync.'); return; }
   try{
-    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
-  }catch(e){}
+    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    console.log('[ADJ] POST to', url, adj);
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
+      if(r.ok) console.log('[ADJ] POST ok', actId);
+      else console.warn('[ADJ] POST failed', r.status, r.statusText);
+    }).catch(function(e){ console.warn('[ADJ] POST error', e); });
+  }catch(e){ console.warn('[ADJ] POST exception', e); }
 }
 function _syncAdjFromServer(actId){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return;
   try{
-    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    console.log('[ADJ] GET from', url);
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(d&&typeof d==='object'&&Object.keys(d).length){
+        console.log('[ADJ] server has data for', actId, d);
         try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
         if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
+      } else {
+        console.log('[ADJ] no server data for', actId);
+      }
+    }).catch(function(e){ console.warn('[ADJ] GET error', e); });
+  }catch(e){ console.warn('[ADJ] GET exception', e); }
+}
+function _syncAllAdjFromServer(){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin){
+    _updateAdjSyncStatus('Servidor no configurado', '#e8594a');
+    _toast('Configura la URL del servidor en Ajustes primero', 'error');
+    return;
+  }
+  _updateAdjSyncStatus('Sincronizando…', '#f2c94c');
+  var acts=document.querySelectorAll('.actividad');
+  var count=0;
+  acts.forEach(function(act){
+    var id=act.id.replace('act-','');
+    if(!id) return;
+    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(id));
+    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(d&&typeof d==='object'&&Object.keys(d).length){
+        try{ localStorage.setItem(_adjKey(id), JSON.stringify(d)); }catch(e){}
+        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+        count++;
       }
     }).catch(function(){});
-  }catch(e){}
+  });
+  setTimeout(function(){
+    _updateAdjSyncStatus(count+' actividad(es) sincronizada(s)', count>0?'#4ae85a':'#8890a0');
+    _toast('Sincronización completada: '+count+' actividad(es)', count>0?'ok':'info');
+  }, 2000);
+}
+function _updateAdjSyncStatus(msg, color){
+  var el=document.getElementById('adj-sync-status');
+  if(el) el.innerHTML='<span style="color:'+(color||'#666')+'">●</span> '+(msg||'—');
+}
+function _updateAdjSyncStatusOnOpen(){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return _updateAdjSyncStatus('Servidor no configurado','#e8594a');
+  _updateAdjSyncStatus('Servidor: '+srv,'#4ae85a');
+}
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin){ console.warn('[ADJ] no server URL configured, adj only saved locally. Configure connector URL for multi-device sync.'); return; }
+  try{
+    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    console.log('[ADJ] POST to', url, adj);
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
+      if(r.ok) console.log('[ADJ] POST ok', actId);
+      else console.warn('[ADJ] POST failed', r.status, r.statusText);
+    }).catch(function(e){ console.warn('[ADJ] POST error', e); });
+  }catch(e){ console.warn('[ADJ] POST exception', e); }
+}
+function _syncAdjFromServer(actId){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return; // no server configured
+  try{
+    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    console.log('[ADJ] GET from', url);
+    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
+      if(d&&typeof d==='object'&&Object.keys(d).length){
+        console.log('[ADJ] server has data for', actId, d);
+        try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
+        if(!window._showOriginal&&typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
+      } else {
+        console.log('[ADJ] no server data for', actId);
+      }
+    }).catch(function(e){ console.warn('[ADJ] GET error', e); });
+  }catch(e){ console.warn('[ADJ] GET exception', e); }
 }
 // Diagnostic: dump adj for current activities from server (open console and call this)
 function _dumpServerAdj(){
@@ -7431,7 +7507,12 @@ function _ensurePanels() {
       +'<div style="display:flex;gap:8px;margin-bottom:14px">'
       +'<button id="cfg-load-btn" onclick="settingsLoadFromServer()" style="padding:8px 16px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:12px;cursor:pointer">Cargar</button>'
       +'<button id="cfg-save-btn" onclick="settingsSave()" style="padding:8px 16px;border-radius:6px;border:1px solid #2a2d35;background:#2a5f3a;color:#eaeaea;font-size:12px;cursor:pointer">Guardar</button></div>'
-      +'<div id="cfg-saved-users" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>';
+      +'<div id="cfg-saved-users" style="display:flex;flex-wrap:wrap;gap:6px"></div>'
+      +'<div style="margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35">'
+      +'<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
+      +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
+      +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>'
+      +'</div></div>';
     document.body.appendChild(s);
   }
   if(!document.getElementById('connector-overlay')){
@@ -7810,6 +7891,7 @@ function openSettings() {
   document.getElementById('cfg-server').value   = server;
   document.getElementById('cfg-drive').value    = drive;
   _refreshSavedUsersChips();
+  _updateAdjSyncStatusOnOpen();
   document.getElementById('settings-overlay').style.display = 'block';
   _updateClearBtnState();
   if (server && !drive) settingsLoadFromServer(true);
