@@ -110,7 +110,8 @@ document.addEventListener('click', function(e){
   else if(cls.indexOf('group-arrow')>=0||cls.indexOf('collapse-toggle')>=0){_DB('CLICK','group-toggle row='+(t.closest('tr')?t.closest('tr').id:'?'));}
 }, true);
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
-function _adjKey(actId){ return 'garmin-adjust-' + String(actId).replace(/^act-/,''); }
+function _adjNorm(actId){ return String(actId).replace(/^act-/,''); }
+function _adjKey(actId){ return 'garmin-adjust-act-' + _adjNorm(actId); }
 function _adjServerUrl(){
   // Use configured connector URL if available (e.g., Railway server)
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
@@ -127,14 +128,14 @@ function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
   // Fire-and-forget server save (async, don't block)
   try{
-    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
+    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
   }catch(e){}
 }
 // Async background sync: pull adjustments from server into localStorage
 function _syncAdjFromServer(actId){
   try{
-    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
+    var url=_adjServerUrl()+'/adj/'+encodeURIComponent(_adjNorm(actId));
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(d&&typeof d==='object'&&Object.keys(d).length){
         try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
