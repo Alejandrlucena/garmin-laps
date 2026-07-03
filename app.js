@@ -192,6 +192,17 @@ function _updateAdjSyncStatusOnOpen(){
   if(!srv||srv===window.location.origin) return _updateAdjSyncStatus('Servidor no configurado','#e8594a');
   _updateAdjSyncStatus('Servidor: '+srv,'#4ae85a');
 }
+function _injectAdjSyncSection(){
+  if(document.getElementById('adj-sync-status')) return;
+  var container=document.getElementById('cfg-saved-users');
+  if(!container) return;
+  var div=document.createElement('div');
+  div.style.cssText='margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35';
+  div.innerHTML='<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
+    +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
+    +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>';
+  container.parentNode.appendChild(div);
+}
 function _syncAdjFromServer(actId){
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin) return; // no server configured
@@ -7496,12 +7507,7 @@ function _ensurePanels() {
       +'<div style="display:flex;gap:8px;margin-bottom:14px">'
       +'<button id="cfg-load-btn" onclick="settingsLoadFromServer()" style="padding:8px 16px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:12px;cursor:pointer">Cargar</button>'
       +'<button id="cfg-save-btn" onclick="settingsSave()" style="padding:8px 16px;border-radius:6px;border:1px solid #2a2d35;background:#2a5f3a;color:#eaeaea;font-size:12px;cursor:pointer">Guardar</button></div>'
-      +'<div id="cfg-saved-users" style="display:flex;flex-wrap:wrap;gap:6px"></div>'
-      +'<div style="margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35">'
-      +'<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
-      +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
-      +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>'
-      +'</div></div>';
+      +'<div id="cfg-saved-users" style="display:flex;flex-wrap:wrap;gap:6px"></div></div>';
     document.body.appendChild(s);
   }
   if(!document.getElementById('connector-overlay')){
@@ -7880,6 +7886,7 @@ function openSettings() {
   document.getElementById('cfg-server').value   = server;
   document.getElementById('cfg-drive').value    = drive;
   _refreshSavedUsersChips();
+  _injectAdjSyncSection();
   _updateAdjSyncStatusOnOpen();
   document.getElementById('settings-overlay').style.display = 'block';
   _updateClearBtnState();
