@@ -112,6 +112,7 @@ document.addEventListener('click', function(e){
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjKey(actId){ return 'garmin-adjust-' + actId; }
 function _adjServerUrl(){
+  // Use configured connector URL if available (e.g., Railway server)
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
   if(configured) return configured;
   var p=window.location.port;
@@ -124,11 +125,13 @@ function _loadAdj(actId){
 }
 function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){}
+  // Fire-and-forget server save (async, don't block)
   try{
     var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).catch(function(){});
   }catch(e){}
 }
+// Async background sync: pull adjustments from server into localStorage
 function _syncAdjFromServer(actId){
   try{
     var url=_adjServerUrl()+'/adj/'+encodeURIComponent(actId);
