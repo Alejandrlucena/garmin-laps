@@ -7674,12 +7674,6 @@ function openConnectorPanel() {
   _startConnectorPolling();
   _injectAdjSyncSection();
   _updateAdjSyncStatusOnOpen();
-    return;
-  }
-
-  _prefetchConnectorBroad();
-  _loadConnectorByDate();
-  _startConnectorPolling();
 }
 
 function _connectorStartupPrefetch() {
