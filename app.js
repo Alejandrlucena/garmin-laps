@@ -200,8 +200,39 @@ function _injectAdjSyncSection(){
   div.style.cssText='margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35';
   div.innerHTML='<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
     +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
-    +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>';
+    +'<div style="display:flex;gap:6px">'
+    +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>'
+    +'<button onclick="_viewAdjServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Ver datos guardados</button>'
+    +'</div>'
+    +'<div id="adj-view-output" style="margin-top:8px;font-size:11px;color:#8890a0;display:none"></div>';
   container.parentNode.insertBefore(div, container.nextSibling);
+}
+function _viewAdjServer(){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin){ _toast('Servidor no configurado','error'); return; }
+  var out=document.getElementById('adj-view-output');
+  if(!out) return;
+  out.style.display='block';
+  out.innerHTML='Cargando…';
+  fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(list){
+    if(!list||!list.length){ out.innerHTML='No hay ajustes guardados en el servidor.'; return; }
+    var html='<div style="font-weight:600;margin-bottom:6px;color:#eaeaea">Ajustes guardados ('+list.length+'):</div>';
+    list.forEach(function(item){
+      var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'—';
+      var d=item.data||{};
+      html+='<div style="padding:6px 0;border-bottom:1px solid #1a1c23">'
+        +'<span style="color:#4ae85a">●</span> <b style="color:#ccc">'+item.id+'</b>'
+        +' <span style="color:#666">'+fecha+'</span><br>'
+        +'<span style="color:#505870">sesDist:</span> '+(d.sesDist||'—')
+        +' <span style="color:#505870">sesPace:</span> '+(d.sesPace||'—')
+        +' <span style="color:#505870">serDist:</span> '+(d.serDist||'—')
+        +' <span style="color:#505870">serPace:</span> '+(d.serPace||'—')
+        +'</div>';
+    });
+    out.innerHTML=html;
+  }).catch(function(){
+    out.innerHTML='Error al consultar el servidor.';
+  });
 }
 // Diagnostic: dump adj for current activities from server (open console and call this)
 function _dumpServerAdj(){
