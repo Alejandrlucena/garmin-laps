@@ -195,33 +195,22 @@ function _updateAdjSyncStatus(msg, color){
   var el=document.getElementById('adj-sync-status');
   if(el) el.innerHTML='<span style="color:'+(color||'#666')+'">●</span> '+(msg||'—');
 }
-function _updateAdjSyncStatusOnOpen(){
+function _updateSyncDot(){
+  var dot=document.getElementById('connector-sync-dot');
+  if(!dot) return;
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin) return _updateAdjSyncStatus('Servidor no configurado','#e8594a');
-  _updateAdjSyncStatus('Servidor: '+srv,'#4ae85a');
+  if(!srv||srv===window.location.origin) dot.style.background='#e8594a';
+  else dot.style.background='#4ae85a';
 }
-function _injectAdjSyncSection(){
-  if(document.getElementById('connector-adj-sync')) return;
-  var container=document.getElementById('connector-list');
-  if(!container||!container.parentNode) return;
-  var div=document.createElement('div');
-  div.id='connector-adj-sync';
-  div.style.cssText='margin-top:16px;padding-top:14px;border-top:1px solid #2a2d35';
-  div.innerHTML='<div style="font-size:12px;color:#8890a0;margin-bottom:8px">Sincronización ajustes</div>'
-    +'<div id="adj-sync-status" style="font-size:12px;color:#666;margin-bottom:8px">—</div>'
-    +'<div style="display:flex;gap:6px">'
-    +'<button onclick="_syncAllAdjFromServer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Sincronizar desde servidor</button>'
-    +'<button onclick="_openAdjViewer()" style="padding:6px 14px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:11px;cursor:pointer">Ver datos guardados</button>'
-    +'</div>';
-  container.parentNode.insertBefore(div, container.nextSibling);
-}
+function _injectAdjSyncSection(){}
+function _updateAdjSyncStatusOnOpen(){}
 
 function _openAdjViewer(){
   var existing=document.getElementById('adj-viewer-overlay');
   if(existing){ existing.style.display='block'; _refreshAdjViewer(); return; }
   var ov=document.createElement('div'); ov.id='adj-viewer-overlay';
   ov.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-  ov.innerHTML='<div style="max-width:560px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
+  ov.innerHTML='<div style="max-width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -7633,6 +7622,7 @@ function openConnectorPanel() {
   const searchWrap = document.getElementById('connector-search-wrap');
   const dateWrap = document.getElementById('connector-date-wrap');
   overlay.style.display = 'block';
+  _updateSyncDot();
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
@@ -7649,8 +7639,18 @@ function openConnectorPanel() {
       _wrap.style.cssText = 'display:flex;align-items:center;gap:6px';
       _hdr.removeChild(_close);
       _wrap.appendChild(_lk);
+
+      // Sync buttons
+      var _syncWrap=document.createElement('span');
+      _syncWrap.id='connector-sync-btns';
+      _syncWrap.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px';
+      _syncWrap.innerHTML='<span id="connector-sync-dot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block"></span>'
+        +'<button onclick="_syncAllAdjFromServer();_updateSyncDot()" title="Sincronizar ajustes" style="background:none;border:none;color:#8890a0;font-size:13px;cursor:pointer;padding:2px 4px">↻</button>'
+        +'<button onclick="_openAdjViewer()" title="Ver ajustes guardados" style="background:none;border:none;color:#8890a0;font-size:13px;cursor:pointer;padding:2px 4px">☰</button>';
+      _wrap.appendChild(_syncWrap);
       _wrap.appendChild(_close);
       _hdr.appendChild(_wrap);
+      _updateSyncDot();
     }
   }
 
@@ -7670,8 +7670,6 @@ function openConnectorPanel() {
       + '<span style="color:#505870">Necesitas <a href="https://github.com/Alejandrlucena/garmin-coach-mcp" '
       + 'target="_blank" style="color:#4a6fa5">garmin-coach-mcp</a> desplegado en Railway '
       + 'o en local (<code style="color:#666">http://localhost:8000</code>).</span></div>';
-    _injectAdjSyncSection();
-    _updateAdjSyncStatusOnOpen();
     return;
   }
   if (loginLink) { loginLink.style.display = ''; _setConnectorLoginState(_connectorLoginState); }
@@ -7690,16 +7688,12 @@ function openConnectorPanel() {
     if (!_connectorRecentReady) _connectorStartupPrefetch();
     _prefetchConnectorBroad();
     _startConnectorPolling();
-    _injectAdjSyncSection();
-    _updateAdjSyncStatusOnOpen();
     return;
   }
 
   _prefetchConnectorBroad();
   _loadConnectorByDate();
   _startConnectorPolling();
-  _injectAdjSyncSection();
-  _updateAdjSyncStatusOnOpen();
 }
 
 function _connectorStartupPrefetch() {
