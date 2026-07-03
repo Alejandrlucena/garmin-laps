@@ -214,25 +214,82 @@ function _viewAdjServer(){
   if(!out) return;
   out.style.display='block';
   out.innerHTML='Cargando…';
-  fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(list){
-    if(!list||!list.length){ out.innerHTML='No hay ajustes guardados en el servidor.'; return; }
-    var html='<div style="font-weight:600;margin-bottom:6px;color:#eaeaea">Ajustes guardados ('+list.length+'):</div>';
-    list.forEach(function(item){
+  fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(resp){
+    if(!resp||!resp.files){ out.innerHTML='No hay ajustes guardados en el servidor.'; return; }
+    var files=resp.files, storage=resp.storage;
+    var html='';
+    // Storage bar (iOS style)
+    if(storage&&storage.total>0){
+      var usedPct=Math.min(100,Math.round(storage.used/storage.total*100));
+      var freePct=100-usedPct;
+      var usedStr=_fmtBytes(storage.used), freeStr=_fmtBytes(storage.free), totalStr=_fmtBytes(storage.total);
+      html+='<div style="margin-bottom:10px;padding:8px 10px;background:#0d0e12;border-radius:6px">'
+        +'<div style="font-size:11px;color:#8890a0;margin-bottom:6px">Almacenamiento</div>'
+        +'<div style="height:16px;background:#2a2d35;border-radius:8px;overflow:hidden;display:flex">'
+        +'<div style="height:100%;background:#4ae85a;width:'+usedPct+'%;min-width:2px"></div>'
+        +'<div style="height:100%;background:#2a2d35;width:'+freePct+'%"></div>'
+        +'</div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:10px;color:#666;margin-top:4px">'
+        +'<span style="color:#4ae85a">▮ '+usedStr+' usados</span>'
+        +'<span>'+freeStr+' libres</span>'
+        +'<span>'+totalStr+' total</span>'
+        +'</div></div>';
+    }
+    if(!files.length){
+      html+='<div style="color:#666">No hay ajustes guardados.</div>';
+      out.innerHTML=html;
+      return;
+    }
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="font-weight:600;color:#eaeaea;font-size:12px">Ajustes ('+files.length+')</span>'
+      +'<button onclick="_deleteAllAdjServer()" style="padding:4px 10px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
+      +'</div>';
+    files.forEach(function(item){
       var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'—';
       var d=item.data||{};
-      html+='<div style="padding:6px 0;border-bottom:1px solid #1a1c23">'
-        +'<span style="color:#4ae85a">●</span> <b style="color:#ccc">'+item.id+'</b>'
-        +' <span style="color:#666">'+fecha+'</span><br>'
-        +'<span style="color:#505870">sesDist:</span> '+(d.sesDist||'—')
-        +' <span style="color:#505870">sesPace:</span> '+(d.sesPace||'—')
-        +' <span style="color:#505870">serDist:</span> '+(d.serDist||'—')
-        +' <span style="color:#505870">serPace:</span> '+(d.serPace||'—')
+      var sizeStr=item.size?_fmtBytes(item.size):'';
+      html+='<div style="padding:5px 0;border-bottom:1px solid #1a1c23;display:flex;justify-content:space-between;align-items:flex-start">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">'
+        +'<span style="color:#4ae85a;font-size:8px">●</span>'
+        +'<b style="color:#ccc;font-size:11px;word-break:break-all">'+item.id+'</b>'
+        +'<span style="color:#505870;font-size:10px">'+fecha+'</span>'
+        +(sizeStr?'<span style="color:#505870;font-size:10px">'+sizeStr+'</span>':'')
+        +'</div>'
+        +'<div style="font-size:10px;color:#505870;margin-top:2px">'
+        +'sesDist: '+(d.sesDist||'—')+' · sesPace: '+(d.sesPace||'—')
+        +' · serDist: '+(d.serDist||'—')+' · serPace: '+(d.serPace||'—')
+        +'</div></div>'
+        +'<button onclick="_deleteAdjServer(\''+item.id+'\')" style="flex-shrink:0;padding:2px 8px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer;margin-left:8px">✕</button>'
         +'</div>';
     });
     out.innerHTML=html;
   }).catch(function(){
     out.innerHTML='Error al consultar el servidor.';
   });
+}
+function _deleteAdjServer(actId){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return;
+  fetch(srv+'/adj/'+encodeURIComponent(actId),{method:'DELETE'}).then(function(r){
+    if(r.ok){ _toast('Eliminado: '+actId,'ok'); _viewAdjServer(); }
+    else _toast('Error al eliminar','error');
+  }).catch(function(){ _toast('Error de red','error'); });
+}
+function _deleteAllAdjServer(){
+  if(!confirm('¿Borrar todos los ajustes guardados en el servidor?')) return;
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return;
+  fetch(srv+'/adj',{method:'DELETE'}).then(function(r){
+    if(r.ok){ _toast('Todos los ajustes eliminados','ok'); _viewAdjServer(); }
+    else _toast('Error al borrar','error');
+  }).catch(function(){ _toast('Error de red','error'); });
+}
+function _fmtBytes(b){
+  if(!b||b===0) return '0 B';
+  var u=['B','KB','MB','GB'],i=0;
+  while(b>=1024&&i<u.length-1){ b/=1024; i++; }
+  return (i>0?b.toFixed(1):b.toFixed(0))+' '+u[i];
 }
 // Diagnostic: dump adj for current activities from server (open console and call this)
 function _dumpServerAdj(){
