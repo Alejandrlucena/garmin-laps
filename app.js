@@ -2061,12 +2061,12 @@ function _applyAdjustUI(actId){
    if(adj.serDist>0 && !adj.sesDist && _cOAD>0 && _cOSD>0){
      var _dS=adj.serDist-_cOAD,_nS=_cOSD+_dS;
      _setChip('sesDist',_nS.toFixed(2));
-     if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));_setChip('sesPace',toRitmo(_nS*1000/origDurSes));}
+     if(origDurSes>0){_setChip('sesSpd',(_nS*1000/origDurSes*3.6).toFixed(2));_setChip('sesPace',_secsToPaceStr(origDurSes/_nS));}
    }
    if(adj.sesDist>0 && !adj.serDist && _cOSD>0 && _cOAD>0){
      var _dSe=adj.sesDist-_cOSD,_nA=_cOAD+_dSe;
      _setChip('serDist',_nA.toFixed(2));
-     if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',toRitmo(_nA*1000/origDurSer));}
+     if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',_secsToPaceStr(origDurSer/_nA));}
    }
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
@@ -2584,8 +2584,8 @@ function _recalcAvgRows(actId){
   }
   // Always sync stat chips with current totals (even when adj exists)
   function _sC(f,v){var i=act.querySelector('[data-field="'+f+'"] input'),s=act.querySelector('[data-field="'+f+'"] .stat-statval');if(i){i.value=v;i.dataset.orig=v;}if(s)s.textContent=v;}
-  if(totDist){_sC('sesDist',totDist.toFixed(2));_sC('sesSpd',toKmh(avgSpdSes)+' km/h');_sC('sesPace',toRitmo(avgSpdSes));}
-  if(actDist){_sC('serDist',actDist.toFixed(2));_sC('serSpd',toKmh(avgSpdSer)+' km/h');_sC('serPace',toRitmo(avgSpdSer));}
+  if(totDist){_sC('sesDist',totDist.toFixed(2));_sC('sesSpd',toKmh(avgSpdSes));_sC('sesPace',_secsToPaceStr(1000/avgSpdSes));}
+  if(actDist){_sC('serDist',actDist.toFixed(2));_sC('serSpd',toKmh(avgSpdSer));_sC('serPace',_secsToPaceStr(1000/avgSpdSer));}
 }
 function _hideGroup(groupId,actId){
   var header=document.getElementById(groupId);
