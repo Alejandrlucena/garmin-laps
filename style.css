@@ -618,6 +618,8 @@ tr:not(.group-header):not(.phase-header):not(.custom-group-header):not(.avg-row)
 /* ── SESSION STATS ── */
 .session-stats{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .stat-group{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+@media(max-width:500px){.stat-group{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:360px){.stat-group{grid-template-columns:1fr}}
 .stat-group + .stat-group{padding-top:10px;border-top:1px solid #1e1f25}
 .stat-chip{display:inline-flex;align-items:center;gap:6px;
   background:#0f1014;border:1px solid #1e1f25;border-radius:7px;
