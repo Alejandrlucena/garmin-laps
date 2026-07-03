@@ -112,6 +112,8 @@ document.addEventListener('click', function(e){
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjKey(actId){ return 'garmin-adjust-' + actId; }
 function _adjServerUrl(){
+  var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
+  if(configured) return configured;
   var p=window.location.port;
   if(p==='8080'||p==='8000')return'http://localhost:8000';
   return window.location.origin;
@@ -2577,13 +2579,10 @@ function _recalcAvgRows(actId){
       if(single) zonesDiv.innerHTML=single;
     }
   }
-  // Sync stat chips with current totals when no adjustments active
-  var _sAdj=_loadAdj(actId);
-  if(!_sAdj||Object.keys(_sAdj).length===0){
-    function _sC(f,v){var i=act.querySelector('[data-field="'+f+'"] input'),s=act.querySelector('[data-field="'+f+'"] .stat-statval');if(i){i.value=v;i.dataset.orig=v;}if(s)s.textContent=v;}
-    if(totDist){_sC('sesDist',totDist.toFixed(2));_sC('sesSpd',toKmh(avgSpdSes)+' km/h');_sC('sesPace',toRitmo(avgSpdSes));}
-    if(actDist){_sC('serDist',actDist.toFixed(2));_sC('serSpd',toKmh(avgSpdSer)+' km/h');_sC('serPace',toRitmo(avgSpdSer));}
-  }
+  // Always sync stat chips with current totals (even when adj exists)
+  function _sC(f,v){var i=act.querySelector('[data-field="'+f+'"] input'),s=act.querySelector('[data-field="'+f+'"] .stat-statval');if(i){i.value=v;i.dataset.orig=v;}if(s)s.textContent=v;}
+  if(totDist){_sC('sesDist',totDist.toFixed(2));_sC('sesSpd',toKmh(avgSpdSes)+' km/h');_sC('sesPace',toRitmo(avgSpdSes));}
+  if(actDist){_sC('serDist',actDist.toFixed(2));_sC('serSpd',toKmh(avgSpdSer)+' km/h');_sC('serPace',toRitmo(avgSpdSer));}
 }
 function _hideGroup(groupId,actId){
   var header=document.getElementById(groupId);
@@ -8331,7 +8330,6 @@ setTimeout(function() {
         if(phase){ _DB('REFRESH', 're-applying phase filter: '+phase); _setPhaseFilter(actId, phase); }
       }
     }
-    if(typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
     _dumpFullState('REFRESH: after _refreshAct('+actId+')');
     if(typeof window._dumpRenderedHTML==='function') setTimeout(function(){ window._dumpRenderedHTML(); },0);
   }
