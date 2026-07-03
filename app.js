@@ -4311,7 +4311,8 @@ function fromRawGarmin(raw){
     distancia_total:(sumDist2/1000).toFixed(2)+' km',
     warmup,series,cooldown,zonas:buildZones(globalZones),
     hr_zone_boundaries:allZones,track:raw.track||null,
-    summary:raw.summary||null};
+    summary:raw.summary||null,
+    activityId:raw.activity_id||raw.activityId||''};
 }
 
 /* ── PARSE GARMIN CONNECT HTML SPLITS TABLE ── */
