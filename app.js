@@ -112,14 +112,11 @@ document.addEventListener('click', function(e){
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjNorm(actId){ return String(actId).replace(/^act-/,''); }
 function _adjKey(actId){ return 'garmin-adjust-act-' + _adjNorm(actId); }
-var _ADJ_SERVER_FALLBACK = 'https://garmin-coach-mcp-production.up.railway.app';
 function _adjServerUrl(){
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
   if(configured) return configured;
   var p=window.location.port;
   if(p==='8080'||p==='8000')return'http://localhost:8000';
-  // From GitHub Pages, use Railway server for multi-device sync
-  if(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1') return _ADJ_SERVER_FALLBACK;
   return window.location.origin;
 }
 function _loadAdj(actId){
