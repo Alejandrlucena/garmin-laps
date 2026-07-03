@@ -195,12 +195,17 @@ function _updateAdjSyncStatus(msg, color){
   var el=document.getElementById('adj-sync-status');
   if(el) el.innerHTML='<span style="color:'+(color||'#666')+'">●</span> '+(msg||'—');
 }
-function _updateSyncDot(){
-  var dot=document.getElementById('connector-sync-dot');
-  if(!dot) return;
+function _updateSyncChip(){
+  var chip=document.getElementById('connector-sync-chip');
+  if(!chip) return;
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin) dot.style.background='#e8594a';
-  else dot.style.background='#4ae85a';
+  if(!srv||srv===window.location.origin){
+    chip.textContent='✖ Sin servidor';
+    chip.style.color='#e8594a'; chip.style.borderColor='#4a2020';
+  } else {
+    chip.textContent='✔ Conectado';
+    chip.style.color='#60b860'; chip.style.borderColor='#206020';
+  }
 }
 function _injectAdjSyncSection(){}
 function _updateAdjSyncStatusOnOpen(){}
@@ -7622,7 +7627,7 @@ function openConnectorPanel() {
   const searchWrap = document.getElementById('connector-search-wrap');
   const dateWrap = document.getElementById('connector-date-wrap');
   overlay.style.display = 'block';
-  _updateSyncDot();
+  _updateSyncChip();
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
@@ -7643,14 +7648,14 @@ function openConnectorPanel() {
       // Sync buttons
       var _syncWrap=document.createElement('span');
       _syncWrap.id='connector-sync-btns';
-      _syncWrap.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:6px';
-      _syncWrap.innerHTML='<span id="connector-sync-dot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block"></span>'
-        +'<button onclick="_syncAllAdjFromServer();_updateSyncDot()" title="Sincronizar ajustes" style="background:none;border:none;color:#8890a0;font-size:13px;cursor:pointer;padding:2px 4px">↻</button>'
-        +'<button onclick="_openAdjViewer()" title="Ver ajustes guardados" style="background:none;border:none;color:#8890a0;font-size:13px;cursor:pointer;padding:2px 4px">☰</button>';
+      _syncWrap.style.cssText='display:inline-flex;align-items:center;gap:4px';
+      _syncWrap.innerHTML='<span id="connector-sync-chip" class="connector-login-btn" style="font-size:11px;padding:2px 10px;cursor:default;color:#666;border-color:#2a2d35">↻</span>'
+        +'<button onclick="_syncAllAdjFromServer();_updateSyncChip()" class="connector-login-btn" style="font-size:11px;padding:2px 10px;cursor:pointer">Sincronizar</button>'
+        +'<button onclick="_openAdjViewer()" class="connector-login-btn" style="font-size:11px;padding:2px 10px;cursor:pointer">Almacenamiento</button>';
       _wrap.appendChild(_syncWrap);
       _wrap.appendChild(_close);
       _hdr.appendChild(_wrap);
-      _updateSyncDot();
+      _updateSyncChip();
     }
   }
 
