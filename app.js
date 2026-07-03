@@ -195,13 +195,6 @@ function _updateAdjSyncStatus(msg, color){
   var el=document.getElementById('adj-sync-status');
   if(el) el.innerHTML='<span style="color:'+(color||'#666')+'">●</span> '+(msg||'—');
 }
-function _updateSyncDot(){
-  var dot=document.getElementById('connector-sync-dot');
-  if(!dot) return;
-  var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin) dot.style.background='#e8594a';
-  else dot.style.background='#4ae85a';
-}
 function _injectAdjSyncSection(){}
 function _updateAdjSyncStatusOnOpen(){}
 
@@ -7622,7 +7615,6 @@ function openConnectorPanel() {
   const searchWrap = document.getElementById('connector-search-wrap');
   const dateWrap = document.getElementById('connector-date-wrap');
   overlay.style.display = 'block';
-  _updateSyncDot();
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
@@ -7640,17 +7632,14 @@ function openConnectorPanel() {
       _hdr.removeChild(_close);
       _wrap.appendChild(_lk);
 
-      // Sync status + Almacenamiento
-      var _syncWrap=document.createElement('span');
-      _syncWrap.id='connector-sync-btns';
-      _syncWrap.style.cssText='display:inline-flex;align-items:center;gap:3px';
-      _syncWrap.innerHTML='<span id="connector-sync-dot" style="width:7px;height:7px;border-radius:50%;background:#666;display:inline-block;flex-shrink:0"></span>'
-        +'<button onclick="_syncAllAdjFromServer();_updateSyncDot()" title="Sincronizar ajustes desde servidor" style="background:none;border:none;color:#8890a0;font-size:11px;cursor:pointer;padding:1px 3px;white-space:nowrap">↻</button>'
-        +'<button onclick="_openAdjViewer()" style="background:none;border:none;color:#8890a0;font-size:11px;cursor:pointer;padding:1px 3px;white-space:nowrap">Almacenamiento</button>';
-      _wrap.appendChild(_syncWrap);
+      // Almacenamiento button
+      var _syncBtn=document.createElement('button');
+      _syncBtn.textContent='Almacenamiento';
+      _syncBtn.style.cssText='background:none;border:none;color:#8890a0;font-size:12px;cursor:pointer;padding:0 6px;white-space:nowrap';
+      _syncBtn.onclick=_openAdjViewer;
+      _wrap.appendChild(_syncBtn);
       _wrap.appendChild(_close);
       _hdr.appendChild(_wrap);
-      _updateSyncDot();
     }
   }
 
