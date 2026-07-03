@@ -110,7 +110,7 @@ document.addEventListener('click', function(e){
   else if(cls.indexOf('group-arrow')>=0||cls.indexOf('collapse-toggle')>=0){_DB('CLICK','group-toggle row='+(t.closest('tr')?t.closest('tr').id:'?'));}
 }, true);
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
-function _adjKey(actId){ return 'garmin-adjust-' + actId; }
+function _adjKey(actId){ return 'garmin-adjust-' + String(actId).replace(/^act-/,''); }
 function _adjServerUrl(){
   // Use configured connector URL if available (e.g., Railway server)
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
