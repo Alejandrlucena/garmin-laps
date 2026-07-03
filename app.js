@@ -192,17 +192,6 @@ function _updateAdjSyncStatusOnOpen(){
   if(!srv||srv===window.location.origin) return _updateAdjSyncStatus('Servidor no configurado','#e8594a');
   _updateAdjSyncStatus('Servidor: '+srv,'#4ae85a');
 }
-  var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin){ console.warn('[ADJ] no server URL configured, adj only saved locally. Configure connector URL for multi-device sync.'); return; }
-  try{
-    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ] POST to', url, adj);
-    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
-      if(r.ok) console.log('[ADJ] POST ok', actId);
-      else console.warn('[ADJ] POST failed', r.status, r.statusText);
-    }).catch(function(e){ console.warn('[ADJ] POST error', e); });
-  }catch(e){ console.warn('[ADJ] POST exception', e); }
-}
 function _syncAdjFromServer(actId){
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin) return; // no server configured
