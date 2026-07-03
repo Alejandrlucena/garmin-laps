@@ -10038,6 +10038,7 @@ setTimeout(function() {
       _reapplyCustomGroups(actId);
       _recalcAutoHeaders(actId);
       _recalcAvgRows(actId);
+      if(typeof _applyAdjustUI === 'function') _applyAdjustUI(actId);
       var table = act.querySelector('table');
       if(table){
         _ensureActionsColumn(table);
