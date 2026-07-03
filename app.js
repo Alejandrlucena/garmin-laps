@@ -112,11 +112,14 @@ document.addEventListener('click', function(e){
 /* ── AJUSTES DE DISTANCIA/RITMO POR ACTIVIDAD ── */
 function _adjNorm(actId){ return String(actId).replace(/^act-/,''); }
 function _adjKey(actId){ return 'garmin-adjust-act-' + _adjNorm(actId); }
+var _ADJ_SERVER_FALLBACK = 'https://garmin-coach-mcp-production.up.railway.app';
 function _adjServerUrl(){
   var configured = typeof _getConnectorUrl==='function' ? _getConnectorUrl() : '';
   if(configured) return configured;
   var p=window.location.port;
   if(p==='8080'||p==='8000')return'http://localhost:8000';
+  // From GitHub Pages, use Railway server for multi-device sync
+  if(window.location.hostname!=='localhost'&&window.location.hostname!=='127.0.0.1') return _ADJ_SERVER_FALLBACK;
   return window.location.origin;
 }
 function _loadAdj(actId){
@@ -143,6 +146,20 @@ function _syncAdjFromServer(actId){
       }
     }).catch(function(){});
   }catch(e){}
+}
+// Diagnostic: dump adj for current activities from server (open console and call this)
+function _dumpServerAdj(){
+  document.querySelectorAll('.actividad').forEach(function(act){
+    var id = act.id.replace('act-','');
+    if(!id) return;
+    var url = _adjServerUrl() + '/adj/' + encodeURIComponent(_adjNorm(id));
+    console.log('[ADJ] fetching from server:', url);
+    fetch(url).then(function(r){ return r.json(); }).then(function(d){
+      console.log('[ADJ] server data for', id, d);
+    }).catch(function(e){
+      console.warn('[ADJ] server fetch failed for', id, e);
+    });
+  });
 }
 // Force sync from server even if localStorage has data (call after render)
 function _forceSyncAllAdjFromServer(){
