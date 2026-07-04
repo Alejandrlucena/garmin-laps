@@ -123,7 +123,7 @@ body{background:#0b0c0f;color:#eaeaea;font-family:-apple-system,BlinkMacSystemFo
 .btn-filter-ok.red:hover{background:#2a1010}
 
 /* ── COMPACT BAR ── */
-.toggle-bar{display:none;margin-top:12px;gap:8px;align-items:center;flex-wrap:wrap}
+.toggle-bar{display:none;margin-top:12px;gap:3px 8px;align-items:center;flex-wrap:wrap}
 .toggle-bar.visible{display:flex}
 .toggle-lbl{font-size:11px;color:#6a7280;;white-space:nowrap;flex-shrink:0}
 .btn-toggle{height:32px;background:#06070a;border:1px solid #1e1f25;border-radius:7px;color:#b8c8e0;font-size:12px;padding:0 14px;cursor:pointer;white-space:nowrap;flex-shrink:0}

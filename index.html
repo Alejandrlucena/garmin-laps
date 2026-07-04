@@ -54,8 +54,13 @@
     </div>
     <div class="toggle-bar" id="toggle-bar">
       <span class="toggle-lbl">Datos actividad:</span>
-      <button class="btn-toggle active" id="btn-view-personalizado" onclick="_setViewMode('personalizado')">Personalizado</button>
-      <button class="btn-toggle" id="btn-view-original" onclick="_setViewMode('original')">Original</button>
+      <div style="white-space:nowrap">
+        <button class="btn-toggle active" id="btn-view-personalizado" onclick="_setViewMode('personalizado')">Personalizado</button>
+        <button class="btn-toggle" id="btn-view-original" onclick="_setViewMode('original')">Original</button>
+      </div>
+      <div style="flex-basis:100%">
+        <button class="btn-restore-all" id="btn-restore-all" onclick="_clearAllAdjustments()" title="Restaurar esta actividad a valores originales" style="display:none;background:#2a2208;border:1px solid #3a3010;color:#f2c94c;cursor:pointer;border-radius:4px;font-size:12px;padding:2px 9px;margin-left:126px;white-space:nowrap"><span style="transform:scaleX(-1);display:inline-block">↵</span> restaurar original</button>
+      </div>
     </div>
     <div class="compact-bar" id="compact-bar">
       <span class="compact-lbl">Agrupar cada:</span>
