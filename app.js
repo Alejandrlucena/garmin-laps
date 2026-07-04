@@ -7799,8 +7799,8 @@ function _renderConnectorActs(acts) {
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-+ '<span style="display:inline-flex;align-items:center;height:13px">'+name+'</span>'
-+ (hasAdj?'<span style="display:inline-flex;align-items:center;height:13px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0">Modificada</span>':'')
++ '<span style="display:inline-block;line-height:13px;vertical-align:middle">'+name+'</span>'
++ (hasAdj?'<span style="display:inline-block;height:13px;box-sizing:border-box;line-height:9px;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;vertical-align:middle">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
