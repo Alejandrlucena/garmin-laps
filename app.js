@@ -120,7 +120,20 @@ function _adjServerUrl(){
   return window.location.origin;
 }
 function _loadAdj(actId){
-  try{ var v = localStorage.getItem(_adjKey(actId)); if(v) return JSON.parse(v); } catch(e){}
+  try{
+    var v = localStorage.getItem(_adjKey(actId));
+    if(v) return JSON.parse(v);
+  } catch(e){}
+  try{
+    var oldKey = 'garmin-adjust-' + _adjNorm(actId);
+    var oldV = localStorage.getItem(oldKey);
+    if(oldV){
+      var parsed = JSON.parse(oldV);
+      localStorage.setItem(_adjKey(actId), oldV);
+      localStorage.removeItem(oldKey);
+      return parsed;
+    }
+  }catch(e){}
   return null;
 }
 function _getActName(actId){
@@ -160,12 +173,15 @@ function _saveAdj(actId, adj){
     }).catch(function(){});
   }catch(e){}
 }
+function _hasAdjData(d){
+  return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
+}
 function _syncAdjFromServer(actId){
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin) return;
   var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
   fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
-    if(d&&typeof d==='object'&&Object.keys(d).length){
+    if(_hasAdjData(d)){
       try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
       if(typeof _recalcAdjust==='function') _recalcAdjust(actId);
     }
@@ -195,7 +211,7 @@ function _syncAllAdjFromServer(){
     if(!id) return;
     var url=srv+'/adj/'+encodeURIComponent(_adjNorm(id));
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
-      if(d&&typeof d==='object'&&Object.keys(d).length){
+      if(_hasAdjData(d)){
         try{ localStorage.setItem(_adjKey(id), JSON.stringify(d)); }catch(e){}
         if(typeof _recalcAdjust==='function') _recalcAdjust(id);
         count++;      }
@@ -221,7 +237,7 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-  ov.innerHTML='<div style="max-width:600px;width:100%;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+   ov.innerHTML='<div style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -7553,20 +7569,6 @@ function _renderConnectorActs(acts) {
     var type = escHtml(_CONNECTOR_TIPOS[a.activityType] || (a.activityType || ''));
     var meta = [date, type, dist, dur].filter(Boolean).join(' · ');
     var hasAdj = !!_loadAdj(a.activityId);
-    // Fallback: scan localStorage for old FIT-keyed adjustments that might match this connector activity
-    if(!hasAdj){
-      try{
-        for(var _i=0;_i<localStorage.length;_i++){
-          var _k=localStorage.key(_i);
-          if(_k&&_k.indexOf('garmin-adjust-')===0){
-            var _v=JSON.parse(localStorage.getItem(_k));
-            if(_v&&(_v.sesDist||_v.serDist||_v.sesPace||_v.serPace)){
-              hasAdj=true;break;
-            }
-          }
-        }
-      }catch(_){}
-    }
     var modChip = hasAdj ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap">Modificada</span>' : '';
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
@@ -10721,7 +10723,7 @@ document.addEventListener('click', function(e){
 });
 // Init view mode and button state on page load
 (function(){
-  var savedMode = 'personalizado';
+  var savedMode = 'original';
   try{ var m = localStorage.getItem('garmin-view-mode'); if(m==='original'||m==='personalizado') savedMode = m; }catch(e){}
   window._showOriginal = savedMode === 'original';
   ['personalizado','original'].forEach(function(m){
