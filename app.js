@@ -237,16 +237,28 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-   ov.innerHTML='<div style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+   ov.innerHTML='<div id="adj-viewer-panel" style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
     +'<div id="adj-viewer-storage" style="margin-bottom:14px"></div>'
     +'<div id="adj-viewer-list"></div>'
+    +'<div id="adj-viewer-debug" style="font-size:10px;color:#555;margin-top:8px;border-top:1px solid #222;padding-top:6px"></div>'
     +'</div>';
   document.body.appendChild(ov);
   ov.style.display='block';
   _refreshAdjViewer();
+  setTimeout(function(){
+    var p=document.getElementById('adj-viewer-panel');
+    var ov2=document.getElementById('adj-viewer-overlay');
+    if(p&&ov2){
+      var cr=p.getBoundingClientRect();
+      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | overlay: '+Math.round(ov2.getBoundingClientRect().width)+' | maxW: 600px | w: 600px | pad: 20+20 | clientW: '+Math.round(p.clientWidth)+' | scrollW: '+Math.round(p.scrollWidth)+' | offsetW: '+Math.round(p.offsetWidth)+' | css width: 600px';
+      console.log('[ADJ-WIDTH]',msg);
+      var dbg=document.getElementById('adj-viewer-debug');
+      if(dbg) dbg.textContent=msg;
+    }
+  }, 100);
 }
 function _refreshAdjViewer(){
   var listEl=document.getElementById('adj-viewer-list');
@@ -775,8 +787,8 @@ function _addEditModeToggle(act){
   }catch(e){}
   btn.onclick=function(e){
     e.preventDefault();e.stopPropagation();
-    if(window._showOriginal)return;
     var on=act.classList.toggle('editing-on');
+    console.log('[EDIT] toggle edit-mode editor on='+on+' _showOriginal='+window._showOriginal+' editable='+document.querySelector('.editing-on .stat-editable input'));
     btn.classList.toggle('active', on);
     try{localStorage.setItem(_editModeKey(act), on?'1':'0');}catch(e){}
     if(typeof window._updateFabState==='function') window._updateFabState();
