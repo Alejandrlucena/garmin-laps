@@ -167,6 +167,11 @@ function _saveAdj(actId, adj){
   Object.keys(existing).forEach(function(k){ merged[k]=existing[k]; });
   Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
   if(adj._activityName) merged._activityName=adj._activityName;
+  // Fallback: read missing fields from chip DOM
+  if(!merged.sesDist){ var v=_readChipVal(actId,'sesDist'); if(v>0) merged.sesDist=v; }
+  if(!merged.sesPace){ var v=_readChipVal(actId,'sesPace'); if(v>0) merged.sesPace=v; }
+  if(!merged.serDist){ var v=_readChipVal(actId,'serDist'); if(v>0) merged.serDist=v; }
+  if(!merged.serPace){ var v=_readChipVal(actId,'serPace'); if(v>0) merged.serPace=v; }
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
@@ -281,6 +286,12 @@ function _loadCellState(actId){
   }
   _markAdjId(actId);
   return _applyData(saved);
+}
+function _readChipVal(actId, field){
+  var el=document.querySelector('[data-act="'+actId+'"][data-field="'+field+'"]');
+  if(!el) return null;
+  var inp=el.querySelector('input');
+  return inp ? parseFloat(inp.value) : null;
 }
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
@@ -7748,8 +7759,8 @@ function _renderConnectorActs(acts) {
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-      + '<span style="line-height:1">'+name+'</span>'
-      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;line-height:1">Modificada</span>':'')
+      + '<span style="display:inline-block;line-height:13px">'+name+'</span>'
+      + (hasAdj?'<span style="display:inline-flex;align-items:center;height:13px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
