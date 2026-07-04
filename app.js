@@ -523,7 +523,7 @@ function _assignHideKeys(lista){
   (lista||[]).forEach(function(act,ai){
     if(!act._actKey){
       var stableId=act.activityId||act.activity_id||'';
-      act._actKey=stableId?('act-'+String(stableId).replace(/[^a-zA-Z0-9_-]/g,'_')):('act'+dh+ai);
+      act._actKey=stableId?String(stableId).replace(/[^a-zA-Z0-9_-]/g,'_'):(dh+ai);
     }
     var n=0;
     function mark(row){
@@ -2242,6 +2242,17 @@ function _applyAdjustUI(actId){
   var act = document.getElementById('act-' + actId);
   if(!act) return;
   var adj = _loadAdj(actId) || {};
+  // Migration: if no adj found with current key, try FIT-generated key
+  if(!adj.sesDist&&!adj.serDist&&!adj.sesPace&&!adj.serPace){
+    var fitId=act.getAttribute('data-fit-id');
+    if(fitId){
+      var fitAdj=_loadAdj(fitId);
+      if(fitAdj&&(fitAdj.sesDist||fitAdj.serDist||fitAdj.sesPace||fitAdj.serPace)){
+        adj=fitAdj;
+        _saveAdj(actId,adj);
+      }
+    }
+  }
   var origDurSes = parseFloat(act.getAttribute('data-orig-dur')) || 0;
   var origDurSer = parseFloat(act.getAttribute('data-orig-dur-ser')) || 0;
   function _setChip(field, val){
@@ -3789,7 +3800,7 @@ var allR=[];
 
   var lblContent=(d.fecha||'')+' — '+(d.nombre||'')+' — '+(d.tipo||'')+' — '+(d.distancia_total||'');
 
-     return'<div class="actividad" id="act-'+_actId+'" data-act-name="'+escHtml(d.nombre||'')+'" data-act-date="'+escHtml(d.fecha||'')+'" data-act-type="'+escHtml(d.tipo||'')+'" data-act-dist="'+escHtml(d.distancia_total||'')+'" data-act-dur="'+totalDurSes+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'">'
+     return'<div class="actividad" id="act-'+_actId+'" data-act-name="'+escHtml(d.nombre||'')+'" data-act-date="'+escHtml(d.fecha||'')+'" data-act-type="'+escHtml(d.tipo||'')+'" data-act-dist="'+escHtml(d.distancia_total||'')+'" data-act-dur="'+totalDurSes+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'" data-fit-id="'+escHtml(d._fit_act_id||'')+'">'
     +'<div class="lbl" contenteditable="true" spellcheck="false"'
     +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}"'
     +' title="Haz clic para editar">'+lblContent+'</div>'
@@ -7542,6 +7553,20 @@ function _renderConnectorActs(acts) {
     var type = escHtml(_CONNECTOR_TIPOS[a.activityType] || (a.activityType || ''));
     var meta = [date, type, dist, dur].filter(Boolean).join(' · ');
     var hasAdj = !!_loadAdj(a.activityId);
+    // Fallback: scan localStorage for old FIT-keyed adjustments that might match this connector activity
+    if(!hasAdj){
+      try{
+        for(var _i=0;_i<localStorage.length;_i++){
+          var _k=localStorage.key(_i);
+          if(_k&&_k.indexOf('garmin-adjust-')===0){
+            var _v=JSON.parse(localStorage.getItem(_k));
+            if(_v&&(_v.sesDist||_v.serDist||_v.sesPace||_v.serPace)){
+              hasAdj=true;break;
+            }
+          }
+        }
+      }catch(_){}
+    }
     var modChip = hasAdj ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap">Modificada</span>' : '';
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
@@ -8000,6 +8025,7 @@ function _parseFitBufferConnector(buf, filename, activityId) {
       try {
         var json = fitToGarminJson(fitData, filename);
         if (filename && activityId) {
+          json._fit_act_id = json.activity_id;
           json.activity_id = String(activityId);
           var connAct = window._connectorActs && _connectorActs.find(function(a){ return String(a.activityId) === String(activityId); });
           if (connAct && connAct.activityName) {
