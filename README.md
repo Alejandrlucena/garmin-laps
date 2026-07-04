@@ -5,7 +5,7 @@ Visualizador y editor interactivo de entrenamientos Garmin. Carga un `.fit`/`.zi
 **Demo:** https://Alejandrlucena.github.io/garmin-laps
 
 > **About del repositorio (GitHub):**  
-> *Visor y editor interactivo de entrenamientos Garmin. Carga archivos .fit, conéctate al servidor MCP o pega JSON. Ajusta distancia/ritmo/velocidad, modo original vs personalizado, persistencia en servidor, tabla con vueltas, zonas de FC, grupos personalizables por arrastre, edición en tiempo real, filtros y exportación a imagen.*
+> *Visor y editor interactivo de entrenamientos Garmin. Carga .fit/.zip, conéctate al servidor MCP o pega JSON. Ajusta distancia/ritmo/velocidad, modo original vs personalizado, persistencia en servidor, filas ocultas, conector con indicador Modificada, tabla con vueltas, zonas de FC, grupos personalizables, edición en tiempo real, filtros y exportación a imagen.*
 
 ---
 
@@ -171,6 +171,10 @@ Junto al botón **✏️** (modo edición) hay dos botones: **Personalizado** y 
 - Los ajustes persisten por actividad: cada actividad tiene su propio conjunto de valores ajustados, identificados por su `activityId` real
 
 Al pulsar **Original**, las chips vuelven a los valores originales de Garmin sin perder los ajustes — puedes alternar entre ambos modos libremente.
+
+En la **toggle-bar**, al activar modo **Personalizado** aparece un botón **`↵` restaurar original** que borra todos los ajustes locales y del servidor y vuelve a valores originales. La flecha `↵` está girada horizontalmente y alineada bajo la primera "o" de "Personalizado".
+
+Las actividades cargadas desde el conector que tengan ajustes guardados muestran una **banda amarilla en el 20% derecho** del item con el texto "Modificada", indicando qué actividades tienen cambios pendientes.
 
 Las stat chips (Dist, Ritmo, Vel) están siempre visibles, tanto en modo original como personalizado. En modo edición (✏️) se muestran como inputs editables; sin modo edición se ven igual que "Tiempo sesión" y "Tiempo activo".
 
