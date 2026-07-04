@@ -169,6 +169,7 @@ function _saveAdj(actId, adj){
   if(adj._activityName) merged._activityName=adj._activityName;
   // Fallback: read missing fields from chip DOM
   _enrichAdjFromChips(actId, merged);
+  _saveChipCache(actId, merged);
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
@@ -298,7 +299,37 @@ function _enrichAdjFromChips(actId, d){
     var v=_readChipVal(actId, field);
     if(v>0 && v!==d[field]){ d[field]=v; changed=true; }
   });
+  // Fallback: try chip cache (populated on every _saveAdj)
+  var ck=_getChipCache(actId);
+  ['serDist','serPace','sesDist','sesPace'].forEach(function(field){
+    if(!d[field] && ck[field]){ d[field]=ck[field]; changed=true; }
+  });
+  // Fallback: try original data attributes from DOM (always available)
+  if(!d.serDist||!d.serPace||!d.sesDist||!d.sesPace){
+    var actEl=document.getElementById('act-'+actId);
+    if(actEl){
+      var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
+      var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
+      var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
+      var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
+      if(!d.sesDist && oDist){ d.sesDist=oDist; changed=true; }
+      if(!d.sesPace && oDist>0 && oDur>0){ d.sesPace=oDur/oDist; changed=true; }
+      if(!d.serDist && oSer){ d.serDist=oSer; changed=true; }
+      if(!d.serPace && oSer>0 && oDurSer>0){ d.serPace=oDurSer/oSer; changed=true; }
+    }
+  }
   return changed;
+}
+var _CHIP_CACHE_KEY='garmin-chip-cache-v1';
+function _saveChipCache(actId, vals){
+  try{
+    var c=JSON.parse(localStorage.getItem(_CHIP_CACHE_KEY))||{};
+    c[actId]=vals;
+    localStorage.setItem(_CHIP_CACHE_KEY, JSON.stringify(c));
+  }catch(e){}
+}
+function _getChipCache(actId){
+  try{ return (JSON.parse(localStorage.getItem(_CHIP_CACHE_KEY))||{})[actId]||{}; }catch(e){ return {}; }
 }
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
@@ -7768,8 +7799,8 @@ function _renderConnectorActs(acts) {
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-+ '<span style="display:inline-flex;align-items:center;height:13px;line-height:1">'+name+'</span>'
-+ (hasAdj?'<span style="display:inline-flex;align-items:center;height:13px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;line-height:1">Modificada</span>':'')
++ '<span style="display:inline-flex;align-items:center;height:13px">'+name+'</span>'
++ (hasAdj?'<span style="display:inline-flex;align-items:center;height:13px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
