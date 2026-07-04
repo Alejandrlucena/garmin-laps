@@ -83,11 +83,11 @@ function _dumpFullState(label){
     'garminConnectorUrl':1, 'garminConnectorAliases':1,
     'garminConnectorUser':1, 'garminDriveUploadUrl':1
   };
-  var _keepAdj = function(k){ return k && k.indexOf('garmin-adjust-') === 0; };
+  var _keepGarmin = function(k){ return k && (k.indexOf('garmin-adj') === 0 || k.indexOf('garmin-cell-') === 0 || k.indexOf('garmin-adjust-') === 0 || k.indexOf('garmin-view-mode') === 0); };
   var del = [];
   for (var i = 0; i < localStorage.length; i++) {
     var k = localStorage.key(i);
-    if (!keep[k] && !_keepAdj(k)) del.push(k);
+    if (!keep[k] && !_keepGarmin(k)) del.push(k);
   }
   del.forEach(function(k) { localStorage.removeItem(k); });
 })();
@@ -3369,7 +3369,7 @@ var allR=[];
 
     var hasRef=!!ref;
     var _zJson=(function(){try{return JSON.stringify(s.zonas_lap||[]).replace(/"/g,'&quot;');}catch(e){return'[]';}})();
-    var _dAttrs=' data-hide-key="'+(s._hideKey||'')+'" data-lbl="'+(lbl||'').replace(/"/g,'&quot;')+'" data-dur="'+_thisDur+'" data-speed="'+(s.speed||0)+'" data-dist="'+(s.dist_km||0)+'" data-fcm="'+(s.fc_med||0)+'" data-fcx="'+(s.fc_max||0)+'" data-cad="'+(s.cadencia||0)+'" data-pow="'+(s.potencia_w||0)+'" data-smax="'+(s.speed_max||0)+'" data-dsn="'+(parseInt(s.desnivel)||0)+'" data-active="'+(isDesc?0:1)+'" data-res="'+(_residualSet.has(s)?1:0)+'" data-zones="'+_zJson+'"';
+    var _dAttrs=' data-hide-key="'+(s._hideKey||'')+'" data-lbl="'+(lbl||'').replace(/"/g,'&quot;')+'" data-dur="'+_thisDur+'" data-orig-dur="'+_thisDur+'" data-speed="'+(s.speed||0)+'" data-orig-speed="'+(s.speed||0)+'" data-dist="'+(s.dist_km||0)+'" data-orig-dist="'+(s.dist_km||0)+'" data-fcm="'+(s.fc_med||0)+'" data-fcx="'+(s.fc_max||0)+'" data-cad="'+(s.cadencia||0)+'" data-pow="'+(s.potencia_w||0)+'" data-smax="'+(s.speed_max||0)+'" data-dsn="'+(parseInt(s.desnivel)||0)+'" data-active="'+(isDesc?0:1)+'" data-res="'+(_residualSet.has(s)?1:0)+'" data-zones="'+_zJson+'"';
     // For descanso: show delta only if main value exists AND we have a reference
     if(isDesc){
       var speedVal=s.speed||0;
@@ -3480,7 +3480,7 @@ var allR=[];
     var gid=_actId+'g'+gi;
     var canToggle=/\b(group-header|phase-header)\b/.test(rowClass||'');
     var _cc=s.subLaps&&s.subLaps.length||0;
-    var attrs=canToggle?' id="'+gid+'" onclick="if(!event.target.closest(\'.lap-label-edit,.group-lbl-edit\')&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')_toggleGroup(\''+gid+'\')" data-lbl="'+label.replace(/"/g,'&quot;')+'" data-dur="'+dur+'" data-speed="'+(s.speed||0)+'" data-dist="'+(s.dist_km||0)+'" data-fcm="'+(s.fc_med||0)+'" data-fcx="'+(s.fc_max||0)+'" data-cad="'+(s.cadencia||0)+'" data-pow="'+(s.potencia_w||0)+'" data-smax="'+(s.speed_max||0)+'" data-dsn="'+(parseInt(s.desnivel)||0)+'"'+(_cc?' data-child-count="'+_cc+'"':''):'';
+    var attrs=canToggle?' id="'+gid+'" onclick="if(!event.target.closest(\'.lap-label-edit,.group-lbl-edit\')&&event.target.tagName!==\'INPUT\'&&event.target.tagName!==\'BUTTON\')_toggleGroup(\''+gid+'\')" data-lbl="'+label.replace(/"/g,'&quot;')+'" data-dur="'+dur+'" data-orig-dur="'+dur+'" data-speed="'+(s.speed||0)+'" data-orig-speed="'+(s.speed||0)+'" data-dist="'+(s.dist_km||0)+'" data-orig-dist="'+(s.dist_km||0)+'" data-fcm="'+(s.fc_med||0)+'" data-fcx="'+(s.fc_max||0)+'" data-cad="'+(s.cadencia||0)+'" data-pow="'+(s.potencia_w||0)+'" data-smax="'+(s.speed_max||0)+'" data-dsn="'+(parseInt(s.desnivel)||0)+'"'+(_cc?' data-child-count="'+_cc+'"':''):'';
     var _displayLabel=_normalizeLabel(label);
     var firstCell=(canToggle?'<span class="group-arrow">▼</span>':'')+'<span class="lap-label-edit" style="cursor:pointer">'+_displayLabel+'</span>'
       +(canToggle?'<button class="hide-btn" onclick="event.stopPropagation();_hideGroup(\''+gid+'\',\''+_actId+'\')" title="Ocultar grupo">✕</button>':'')
