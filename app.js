@@ -445,12 +445,12 @@ function _refreshAdjViewer(){
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
           +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
           +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
-          +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
-          +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
-          +(d.serDist&&d.serPace?' · ':'')
-          +(d.serPace?'<span>Ritmo activo: '+_secsToPaceStr(d.serPace)+'</span>':'')
-          +(d.serDist||d.serPace?'</div>':'')
-          +'</div></div>'
+           +'<div style="margin-top:2px">'
+           +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
+           +' · '
+           +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
+           +'</div>'
+           +'</div></div>'
         +'</div>';
       });
       listEl.innerHTML=lh;
@@ -545,17 +545,17 @@ function _refreshAdjViewer(){
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
         +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
-        +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
-        +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
-        +(d.serDist&&d.serPace?' · ':'')
-        +(d.serPace?'<span>Ritmo activo: '+_secsToPaceStr(d.serPace)+'</span>':'')
-        +(d.serDist||d.serPace?'</div>':'')
-        +'</div>'
-        +'<div style="font-size:10px;color:#505870;margin-top:2px">'
-        +'<span>'+fecha+'</span>'
-        +(sizeStr?' · <span>'+sizeStr+'</span>':'')
-        +'</div></div>'
-        +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
+           +'<div style="margin-top:2px">'
+           +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
+           +' · '
+           +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
+           +'</div>'
+           +'</div>'
+         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
+         +'<span>'+fecha+'</span>'
+         +(sizeStr?' · <span>'+sizeStr+'</span>':'')
+         +'</div></div>'
+         +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
         +'</div>';
     });
     listEl.innerHTML=h;
@@ -7747,9 +7747,9 @@ function _renderConnectorActs(acts) {
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px;line-height:13px">'
-      + '<span>'+name+'</span>'
-      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;line-height:13px">Modificada</span>':'')
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
+      + '<span style="line-height:1">'+name+'</span>'
+      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;line-height:1">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
