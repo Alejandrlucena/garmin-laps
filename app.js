@@ -7908,18 +7908,18 @@ function _renderConnectorActs(acts) {
       + (hasAdj?'<div style="width:20%;flex:none;background:#3a3010;color:#f2c94c;display:flex;align-items:center;justify-content:center;font-size:9px;min-width:0">Modificada</div>':'')
       + '</div>';
   }).join('');
-  setTimeout(function(){
-    list.querySelectorAll('[id^="conn-name-"]').forEach(function(nameEl){
-      var row=nameEl.closest('[id^="conn-row-"]');
-      var item=row&&row.parentElement&&row.parentElement.parentElement;
-      var chip=item&&item.lastElementChild;
-      if(!chip||chip.tagName!=='DIV'||!chip.textContent.includes('Modificada')) return;
-      var ib=item.getBoundingClientRect(), cb=chip.getBoundingClientRect(), rb=row.getBoundingClientRect();
-      console.log('[ITEM] itemH='+ib.height.toFixed(1)+' chipH='+cb.height.toFixed(1)+' chipW='+cb.width.toFixed(1)
-        +' chipT='+cb.top.toFixed(1)+' chipB='+cb.bottom.toFixed(1)
-        +' chipOffCenter='+((cb.top+cb.height/2)-(ib.top+ib.height/2)).toFixed(1));
-    });
-  }, 100);
+  //setTimeout(function(){
+  //  list.querySelectorAll('[id^="conn-name-"]').forEach(function(nameEl){
+  //    var row=nameEl.closest('[id^="conn-row-"]');
+  //    var item=row&&row.parentElement&&row.parentElement.parentElement;
+  //    var chip=item&&item.lastElementChild;
+  //    if(!chip||chip.tagName!=='DIV'||!chip.textContent.includes('Modificada')) return;
+  //    var ib=item.getBoundingClientRect(), cb=chip.getBoundingClientRect(), rb=row.getBoundingClientRect();
+  //    console.log('[ITEM] itemH='+ib.height.toFixed(1)+' chipH='+cb.height.toFixed(1)+' chipW='+cb.width.toFixed(1)
+  //      +' chipT='+cb.top.toFixed(1)+' chipB='+cb.bottom.toFixed(1)
+  //      +' chipOffCenter='+((cb.top+cb.height/2)-(ib.top+ib.height/2)).toFixed(1));
+  //  });
+  //}, 100);
 }
 
 var _connectorBroadActs = null;
