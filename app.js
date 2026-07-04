@@ -168,10 +168,7 @@ function _saveAdj(actId, adj){
   Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
   if(adj._activityName) merged._activityName=adj._activityName;
   // Fallback: read missing fields from chip DOM
-  if(!merged.sesDist){ var v=_readChipVal(actId,'sesDist'); if(v>0) merged.sesDist=v; }
-  if(!merged.sesPace){ var v=_readChipVal(actId,'sesPace'); if(v>0) merged.sesPace=v; }
-  if(!merged.serDist){ var v=_readChipVal(actId,'serDist'); if(v>0) merged.serDist=v; }
-  if(!merged.serPace){ var v=_readChipVal(actId,'serPace'); if(v>0) merged.serPace=v; }
+  _enrichAdjFromChips(actId, merged);
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
@@ -291,7 +288,17 @@ function _readChipVal(actId, field){
   var el=document.querySelector('[data-act="'+actId+'"][data-field="'+field+'"]');
   if(!el) return null;
   var inp=el.querySelector('input');
-  return inp ? parseFloat(inp.value) : null;
+  if(!inp) return null;
+  if(field==='sesPace'||field==='serPace') return _paceStrToSecs(inp.value);
+  return parseFloat(inp.value);
+}
+function _enrichAdjFromChips(actId, d){
+  var changed=false;
+  if(!d.serDist){ var v=_readChipVal(actId,'serDist'); if(v>0){ d.serDist=v; changed=true; } }
+  if(!d.serPace){ var v=_readChipVal(actId,'serPace'); if(v>0){ d.serPace=v; changed=true; } }
+  if(!d.sesDist){ var v=_readChipVal(actId,'sesDist'); if(v>0){ d.sesDist=v; changed=true; } }
+  if(!d.sesPace){ var v=_readChipVal(actId,'sesPace'); if(v>0){ d.sesPace=v; changed=true; } }
+  return changed;
 }
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
@@ -436,6 +443,7 @@ function _refreshAdjViewer(){
       localItems.forEach(function(item){
         var d=item.data||{};
         var actKey=item.key.replace(/^garmin-adjust-act-/,'').replace(/^garmin-adjust-/,'');
+        _enrichAdjFromChips(actKey, d);
         var raw=d._activityName||_getActName(actKey)||_resolveActTitleFromCache(actKey)||actKey;
         var parts=raw.split('\n').filter(Boolean);
         var locTitle, locSub;
@@ -531,9 +539,10 @@ function _refreshAdjViewer(){
       +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+adjFiles.length+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
       +'</div>';
-    adjFiles.forEach(function(item){
-      var d=item.data||{};
-      var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
+      adjFiles.forEach(function(item){
+        var d=item.data||{};
+        _enrichAdjFromChips(item.id, d);
+        var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
       if(parts.length>1){
@@ -7759,7 +7768,7 @@ function _renderConnectorActs(acts) {
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-      + '<span style="display:inline-block;line-height:13px">'+name+'</span>'
+      + '<span style="display:inline-flex;align-items:center;height:13px">'+name+'</span>'
       + (hasAdj?'<span style="display:inline-flex;align-items:center;height:13px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
