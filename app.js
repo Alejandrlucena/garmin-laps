@@ -474,9 +474,7 @@ function _refreshAdjViewer(){
       localItems.forEach(function(item){
         var d=item.data||{};
         var actKey=item.key.replace(/^garmin-adjust-act-/,'').replace(/^garmin-adjust-/,'');
-        if(_enrichAdjFromChips(actKey, d)){
-          try{ localStorage.setItem(item.key, JSON.stringify(d)); }catch(e){}
-        }
+        _enrichAdjFromChips(actKey, d);
         var raw=d._activityName||_getActName(actKey)||_resolveActTitleFromCache(actKey)||actKey;
         var parts=raw.split('\n').filter(Boolean);
         var locTitle, locSub;
@@ -574,9 +572,7 @@ function _refreshAdjViewer(){
       +'</div>';
       adjFiles.forEach(function(item){
         var d=item.data||{};
-        if(_enrichAdjFromChips(item.id, d)){
-          try{ localStorage.setItem(_adjKey(item.id), JSON.stringify(d)); }catch(e){}
-        }
+        _enrichAdjFromChips(item.id, d);
         var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
@@ -7802,9 +7798,9 @@ function _renderConnectorActs(acts) {
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="display:table;width:100%;table-layout:auto;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-      + '<div style="display:table-cell;vertical-align:middle;line-height:13px">'+name+'</div>'
-      +(hasAdj?'<div style="display:table-cell;vertical-align:middle;text-align:right;white-space:nowrap;width:1%;padding-left:8px"><span style="display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a">Modificada</span></div>':'')
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
+      + '<span style="display:inline-flex;align-items:center;height:15px;line-height:1">'+name+'</span>'
+      + (hasAdj?'<span style="display:inline-flex;align-items:center;height:15px;box-sizing:border-box;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0">Modificada</span>':'')
       + '</div>'
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
