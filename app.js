@@ -215,7 +215,7 @@ function _openAdjViewer(){
   document.addEventListener('keydown',_adjEsc);
   ov.innerHTML='<div style="max-width:600px;width:100%;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-    +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Ajustes guardados</span>'
+    +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
     +'<div id="adj-viewer-storage" style="margin-bottom:14px"></div>'
     +'<div id="adj-viewer-list"></div>'
@@ -228,7 +228,9 @@ function _openAdjViewer(){
     var aw=document.getElementById('adj-viewer-overlay');
     if(cw&&aw){
       var ci=cw.querySelector('div>div'), ai=aw.querySelector('div>div');
-      if(ci&&ai) console.log('[WIDTH] Actividades inner:', ci.offsetWidth, '| Almacenamiento inner:', ai.offsetWidth);
+      if(ci&&ai) console.log('[WIDTH] Actividades inner:', ci.offsetWidth, '| Almacenamiento inner:', ai.offsetWidth, '| wrapper:', ci.parentElement.offsetWidth, ci.parentElement.tagName, ci.parentElement.id);
+      var cw2=cw.querySelector('[style*="max-width:600"]'); if(cw2) console.log('[WIDTH] Actividades wrapper (by query):', cw2.offsetWidth);
+      var aw2=aw.querySelector('[style*="max-width:600"]'); if(aw2) console.log('[WIDTH] Almacenamiento wrapper (by query):', aw2.offsetWidth);
     }
   }, 100);
   _refreshAdjViewer();
@@ -240,7 +242,44 @@ function _refreshAdjViewer(){
   listEl.innerHTML='<div style="text-align:center;padding:20px;color:#555;font-size:12px">Cargando…</div>';
   storageEl.innerHTML='';
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin){ listEl.innerHTML='<div style="color:#666;font-size:12px">Servidor no configurado.</div>'; return; }
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin){
+    // Show localStorage adjustments when no server is configured
+    var localItems=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k&&k.indexOf('garmin-adjust-')===0){
+        try{
+          var v=JSON.parse(localStorage.getItem(k));
+          if(v&&(v.sesDist||v.serDist||v.sesPace||v.serPace)){
+            localItems.push({key:k,data:v});
+          }
+        }catch(e){}
+      }
+    }
+    if(localItems.length){
+      var lh='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+        +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+localItems.length+' ajuste(s) locales</span>'
+        +'</div>';
+      localItems.forEach(function(item){
+        var d=item.data||{};
+        var raw=d._activityName||item.key.replace('garmin-adjust-','');
+        var title=raw;
+        lh+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;overflow:hidden">'
+          +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
+          +'<div style="font-size:11px;color:#666;margin-top:3px">'
+          +'<span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
+          +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span>'
+          +(d.serDist?' · <span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
+          +(d.serPace?' · <span>Ritmo activo: '+d.serPace+'</span>':'')
+          +'</div></div>';
+      });
+      listEl.innerHTML=lh;
+    } else {
+      listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados (local).</div>';
+    }
+    return;
+  }
   fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(resp){
     if(!resp){ listEl.innerHTML='<div style="color:#666;font-size:12px">Error al consultar el servidor.</div>'; return; }
     var files=resp.files, storage=resp.storage;
@@ -2254,12 +2293,29 @@ function _applyAdjustUI(actId){
         mc = document.createElement('span');
         mc.className = 'adj-mod-chip';
         mc.textContent = 'Modificada';
-        mc.style.cssText = 'display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a';
-        lbl.parentNode.insertBefore(mc, lbl.nextSibling);
+        mc.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap;flex-shrink:0';
+        // Wrap lbl + badge in a flex row so the badge stays inline with the name
+        var wr = lbl.parentNode;
+        if (wr && wr.classList.contains('lbl-row')) {
+          wr.appendChild(mc);
+        } else {
+          wr = document.createElement('div');
+          wr.className = 'lbl-row';
+          wr.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:6px';
+          lbl.parentNode.insertBefore(wr, lbl);
+          wr.appendChild(lbl);
+          wr.appendChild(mc);
+        }
       }
     }
   } else if (mc) {
+    var wr = mc.parentNode;
     mc.remove();
+    if (wr && wr.classList.contains('lbl-row') && wr.children.length === 1 && wr.children[0].classList.contains('lbl')) {
+      var lbl2 = wr.querySelector('.lbl');
+      wr.parentNode.insertBefore(lbl2, wr);
+      wr.remove();
+    }
   }
 
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
@@ -4684,6 +4740,13 @@ function render(){
       if(typeof _syncAdjFromServer==='function') _syncAdjFromServer(id);
     });
   }, 0);
+  // Also force re-apply after a short delay to catch any async sync responses
+  setTimeout(function(){
+    document.querySelectorAll('.actividad').forEach(function(act){
+      var id = act.id.replace('act-','');
+      if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+    });
+  }, 150);
 }
 
 /* ── SAVE IMAGE ── */
@@ -10529,11 +10592,27 @@ if (typeof window._initLapEditAll === 'function') {
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', function(){
     setTimeout(_ensurePanels, 0);
-    setTimeout(function(){ if(typeof _adjAutoSync==='function') _adjAutoSync(); }, 0);
+    setTimeout(function(){
+      if(typeof _adjAutoSync==='function') _adjAutoSync();
+      setTimeout(function(){
+        document.querySelectorAll('.actividad').forEach(function(act){
+          var id = act.id.replace('act-','');
+          if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+        });
+      }, 200);
+    }, 0);
   });
 } else {
   setTimeout(_ensurePanels, 0);
-  setTimeout(function(){ if(typeof _adjAutoSync==='function') _adjAutoSync(); }, 0);
+  setTimeout(function(){
+    if(typeof _adjAutoSync==='function') _adjAutoSync();
+    setTimeout(function(){
+      document.querySelectorAll('.actividad').forEach(function(act){
+        var id = act.id.replace('act-','');
+        if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+      });
+    }, 200);
+  }, 0);
 }
 // ── Auto-import config from shared link ──
 (function(){
