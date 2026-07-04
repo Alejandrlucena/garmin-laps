@@ -179,6 +179,61 @@ function _saveAdj(actId, adj){
     }).catch(function(e){console.warn('[ADJ-SAVE] POST error', e);});
   }catch(e){console.warn('[ADJ-SAVE] exception', e);}
 }
+/* ── CELL EDIT PERSISTENCE ── */
+function _cellKey(actId){ return 'garmin-cell-act-'+actId; }
+function _saveCellState(actId){
+  var act=document.getElementById('act-'+actId);
+  if(!act) return;
+  var rows=act.querySelectorAll('tbody tr');
+  var data={};
+  rows.forEach(function(tr){
+    var id=tr.id;
+    if(!id) return;
+    data[id]={speed:parseFloat(tr.getAttribute('data-speed'))||0,dist:parseFloat(tr.getAttribute('data-dist'))||0,dur:parseFloat(tr.getAttribute('data-dur'))||0};
+  });
+  if(Object.keys(data).length===0) return;
+  try{
+    localStorage.setItem(_cellKey(actId), JSON.stringify(data));
+    console.log('[CELL-SAVE] actId='+actId+' rows='+Object.keys(data).length+' key='+_cellKey(actId));
+  }catch(e){console.warn('[CELL-SAVE] localStorage error', e);}
+}
+function _loadCellState(actId){
+  var act=document.getElementById('act-'+actId);
+  if(!act) return false;
+  var saved;
+  try{ saved=JSON.parse(localStorage.getItem(_cellKey(actId))); }catch(e){ return false; }
+  if(!saved) return false;
+  var changed=0;
+  Object.keys(saved).forEach(function(id){
+    var tr=document.getElementById(id);
+    if(!tr) return;
+    var s=saved[id];
+    var cSpd=parseFloat(tr.getAttribute('data-speed'))||0;
+    var cDist=parseFloat(tr.getAttribute('data-dist'))||0;
+    var cDur=parseFloat(tr.getAttribute('data-dur'))||0;
+    if(Math.abs(cSpd-s.speed)<0.0001&&Math.abs(cDist-s.dist)<0.0001&&Math.abs(cDur-s.dur)<0.0001) return;
+    tr.setAttribute('data-speed',s.speed);
+    tr.setAttribute('data-dist',s.dist);
+    tr.setAttribute('data-dur',s.dur);
+    var m1=tr.querySelector('.col-speed .main');
+    var m2=tr.querySelector('.col-pace .main');
+    var m3=tr.querySelector('.col-dist .main');
+    var m4=tr.querySelector('.col-time .main');
+    if(m1) m1.textContent=toKmh(s.speed)+' km/h';
+    if(m2) m2.textContent=toRitmo(s.speed);
+    if(m3) m3.textContent=s.dist.toFixed(2);
+    if(m4){
+      var isMoto=act.getAttribute('data-sport')==='MOTO';
+      m4.textContent=secsToStepStr(s.dur,isMoto?3:1);
+    }
+    changed++;
+  });
+  if(changed>0){
+    console.log('[CELL-LOAD] actId='+actId+' restored='+changed+' rows, calling _refreshAct');
+    if(typeof window._refreshAct==='function') window._refreshAct(actId);
+  }
+  return changed>0;
+}
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
 }
@@ -2276,6 +2331,7 @@ function _onSpeedEdit(input, actId){
 function _applyAdjustUI(actId){
   var act = document.getElementById('act-' + actId);
   if(!act) return;
+  if(typeof _loadCellState==='function') _loadCellState(actId);
   var adj = _loadAdj(actId) || {};
   // Migration: if no adj found with current key, try FIT-generated key
   if(!adj.sesDist&&!adj.serDist&&!adj.sesPace&&!adj.serPace){
@@ -2531,6 +2587,7 @@ function _onLapSpeedPaceBlur(e){
   _DB('EDIT', 'calling _refreshAct for actId='+actId);
   if(typeof window._refreshAct==='function') window._refreshAct(actId);
   _DB('EDIT', '_onLapSpeedPaceBlur DONE');
+  if(typeof _saveCellState==='function') _saveCellState(actId);
   if(window._editStack){
     var _uOp={actId:actId, type:'cellEdit', id:tr.id,
       oldState:{speed:oldSpeed, dist:oldDist, dur:oldDur, children:_oldChildren},
@@ -8685,6 +8742,7 @@ setTimeout(function() {
     try{ if(op.undo) op.undo(); }catch(e){ console.log('[UNDO/OP] undo error:', e); }
     W._editRedo.push(op);
     _refreshAct(op.actId);
+    if(typeof _saveCellState==='function') _saveCellState(op.actId);
     if(typeof _applyAdjustUI==='function') _applyAdjustUI(op.actId);
     _updateFabState();
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
@@ -8697,6 +8755,7 @@ setTimeout(function() {
     try{ if(op.apply) op.apply(); }catch(e){ console.log('[UNDO/OP] redo error:', e); }
     W._editStack.push(op);
     _refreshAct(op.actId);
+    if(typeof _saveCellState==='function') _saveCellState(op.actId);
     if(typeof _applyAdjustUI==='function') _applyAdjustUI(op.actId);
     _updateFabState();
     setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },50);
