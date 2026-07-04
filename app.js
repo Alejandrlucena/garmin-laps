@@ -164,6 +164,7 @@ function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
+  if(_hasAdjData(adj)) _markAdjId(actId); else _unmarkAdjId(actId);
   console.log('[ADJ-SAVE] actId='+actId+' key='+_adjKey(actId)+' hasDist='+(adj.sesDist>0)+' hasSer='+(adj.serDist>0));
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin){
@@ -265,6 +266,21 @@ function _loadCellState(actId){
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
 }
+var _ADJ_IDS_KEY='garmin-adj-ids-v1';
+function _getAdjIds(){
+  try{ return JSON.parse(localStorage.getItem(_ADJ_IDS_KEY))||[]; }catch(e){ return []; }
+}
+function _saveAdjIds(ids){
+  try{ localStorage.setItem(_ADJ_IDS_KEY, JSON.stringify(ids)); }catch(e){}
+}
+function _markAdjId(actId){
+  var ids=_getAdjIds();
+  if(ids.indexOf(String(actId))<0){ ids.push(String(actId)); _saveAdjIds(ids); }
+}
+function _unmarkAdjId(actId){
+  var ids=_getAdjIds().filter(function(id){return id!==String(actId);});
+  _saveAdjIds(ids);
+}
 function _syncAdjFromServer(actId){
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin) return;
@@ -272,7 +288,8 @@ function _syncAdjFromServer(actId){
   fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
     if(_hasAdjData(d)){
       try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
-      if(typeof _recalcAdjust==='function') _recalcAdjust(actId);
+      _markAdjId(actId);
+      if(!window._showOriginal && typeof _recalcAdjust==='function') _recalcAdjust(actId);
     }
   }).catch(function(){});
 }
@@ -302,7 +319,8 @@ function _syncAllAdjFromServer(){
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(_hasAdjData(d)){
         try{ localStorage.setItem(_adjKey(id), JSON.stringify(d)); }catch(e){}
-        if(typeof _recalcAdjust==='function') _recalcAdjust(id);
+        _markAdjId(id);
+        if(!window._showOriginal && typeof _recalcAdjust==='function') _recalcAdjust(id);
         count++;      }
     }).catch(function(){});
   });
@@ -318,6 +336,18 @@ function _updateAdjSyncStatus(msg, color){
 function _injectAdjSyncSection(){}
 function _updateAdjSyncStatusOnOpen(){}
 
+function _resolveActTitleFromCache(actId){
+  var allActs=(window._connectorActs||[]).concat(window._connectorBroadActs||[]);
+  var act=allActs.find(function(a){return String(a.activityId)===String(actId);});
+  if(act){
+    var durStr='';
+    if(act.durationMin>0){var s=Math.round(act.durationMin*60),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);durStr=h>0?h+'h '+m+'min':m+'min';}
+    var meta=[(act.startTimeLocal||'').slice(0,10),window._CONNECTOR_TIPOS?window._CONNECTOR_TIPOS[act.activityType]:act.activityType||'',act.distanceKm>0?act.distanceKm.toFixed(2)+' km':'',durStr].filter(Boolean).join(' · ');
+    var name=act.activityName||'';
+    return meta?name+'\n'+meta:name;
+  }
+  return null;
+}
 function _openAdjViewer(){
   var existing=document.getElementById('adj-viewer-overlay');
   if(existing){ existing.style.display='block'; _refreshAdjViewer(); return; }
@@ -374,7 +404,8 @@ function _refreshAdjViewer(){
         +'</div>';
       localItems.forEach(function(item){
         var d=item.data||{};
-        var raw=d._activityName||item.key.replace('garmin-adjust-','');
+        var actKey=item.key.replace(/^garmin-adjust-act-/,'').replace(/^garmin-adjust-/,'');
+        var raw=d._activityName||_resolveActTitleFromCache(actKey)||actKey;
         var title=raw;
         lh+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;overflow:hidden">'
           +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
@@ -420,7 +451,8 @@ function _refreshAdjViewer(){
       +'</div>';
     files.forEach(function(item){
       var d=item.data||{};
-      var raw=d._activityName||'';
+      var rName=_resolveActTitleFromCache(item.id);
+      var raw=d._activityName||rName||'';
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
       if(parts.length>1){
@@ -2357,6 +2389,7 @@ function _applyAdjustUI(actId){
   var act = document.getElementById('act-' + actId);
   if(!act) return;
   if(typeof _loadCellState==='function') _loadCellState(actId);
+  if(window._showOriginal) return;
   var adj = _loadAdj(actId) || {};
   // Migration: if no adj found with current key, try FIT-generated key
   if(!adj.sesDist&&!adj.serDist&&!adj.sesPace&&!adj.serPace){
@@ -7662,6 +7695,7 @@ function _renderConnectorActs(acts) {
     list.innerHTML = '<div style="text-align:center;padding:28px;color:#555;font-size:12px">'+msg+'</div>';
     return;
   }
+  var adjIds = _getAdjIds();
   list.innerHTML = acts.map(function(a) {
     var name = escHtml(a.activityName || 'Actividad');
     var date = a.startTimeLocal ? a.startTimeLocal.slice(0, 10) : '';
@@ -7669,7 +7703,7 @@ function _renderConnectorActs(acts) {
     var dur  = a.durationMin > 0 ? (function(){var s=Math.round(a.durationMin*60),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'min';return m+'min';})() : '';
     var type = escHtml(_CONNECTOR_TIPOS[a.activityType] || (a.activityType || ''));
     var meta = [date, type, dist, dur].filter(Boolean).join(' · ');
-    var hasAdj = !!_loadAdj(a.activityId);
+    var hasAdj = adjIds.indexOf(String(a.activityId)) >= 0;
     var modChip = hasAdj ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap">Modificada</span>' : '';
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
