@@ -196,6 +196,7 @@ function _saveCellState(actId){
   try{
     localStorage.setItem(_cellKey(actId), JSON.stringify(data));
   }catch(e){console.warn('[CELL-SAVE] localStorage error', e);}
+  _markAdjId(actId);
   var srv=_adjServerUrl();
   if(srv&&srv!==window.location.origin){
     fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
@@ -250,6 +251,7 @@ function _loadCellState(actId){
         if(serverData&&Object.keys(serverData).length>0){
           console.log('[CELL-LOAD] actId='+actId+' loaded from server');
           try{localStorage.setItem(_cellKey(actId), JSON.stringify(serverData));}catch(e){}
+          _markAdjId(actId);
           return _applyData(serverData);
         }
       }
@@ -261,6 +263,7 @@ function _loadCellState(actId){
     console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId));
     return false;
   }
+  _markAdjId(actId);
   return _applyData(saved);
 }
 function _hasAdjData(d){
@@ -2388,8 +2391,8 @@ function _onSpeedEdit(input, actId){
 function _applyAdjustUI(actId){
   var act = document.getElementById('act-' + actId);
   if(!act) return;
-  if(typeof _loadCellState==='function') _loadCellState(actId);
   if(window._showOriginal) return;
+  if(typeof _loadCellState==='function') _loadCellState(actId);
   var adj = _loadAdj(actId) || {};
   // Migration: if no adj found with current key, try FIT-generated key
   if(!adj.sesDist&&!adj.serDist&&!adj.sesPace&&!adj.serPace){
