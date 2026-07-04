@@ -167,38 +167,29 @@ function _saveAdj(actId, adj){
   Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
   if(adj._activityName) merged._activityName=adj._activityName;
   _enrichAdjFromChips(actId, merged);
-  // Force fallback: always try data-orig attributes for serDist/serPace
-  if(!merged.serDist||!merged.serPace){
-    var actEl=document.getElementById('act-'+actId);
-    if(actEl){
-      var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
-      var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
-      var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
-      var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
-      if(!merged.sesDist && oDist) merged.sesDist=oDist;
-      if(!merged.sesPace && oDist>0 && oDur>0) merged.sesPace=oDur/oDist;
-      if(!merged.serDist && oSer) merged.serDist=oSer;
-      if(!merged.serPace && oSer>0 && oDurSer>0) merged.serPace=oDurSer/oSer;
-    }
+  var actEl=document.getElementById('act-'+actId);
+  if(actEl){
+    var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
+    var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
+    var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
+    var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
+    merged._origSesDist=oDist; merged._origSesPace=oDur>0?oDur/oDist:0;
+    merged._origSerDist=oSer; merged._origDurSer=oDurSer; merged._origSerPace=oSer>0?oDurSer/oSer:0;
+    if(!merged.sesDist && oDist) merged.sesDist=oDist;
+    if(!merged.sesPace && oDist>0 && oDur>0) merged.sesPace=oDur/oDist;
+    if(!merged.serDist && oSer) merged.serDist=oSer;
+    if(!merged.serPace && oSer>0 && oDurSer>0) merged.serPace=oDurSer/oSer;
   }
-  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
-    console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
-  }
+  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){}
   if(_hasAdjData(merged)) _markAdjId(actId); else _unmarkAdjId(actId);
-  console.log('[ADJ-SAVE] actId='+actId+' key='+_adjKey(actId)+' hasDist='+(merged.sesDist>0)+' hasSer='+(merged.serDist>0));
+  console.log('[ADJ-OUT] merged keys='+Object.keys(merged).join(',')+' sesDist='+merged.sesDist+' sesPace='+merged.sesPace+' serDist='+merged.serDist+' serPace='+merged.serPace);
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin){
-    console.log('[ADJ-SAVE] skip POST: srv='+srv+' origin='+window.location.origin);
-    return;
-  }
+  if(!srv||srv===window.location.origin) return;
   try{
-    var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ-SAVE] POST', url, JSON.stringify(merged).slice(0,200));
-    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(merged)}).then(function(r){
-      if(r.ok) console.log('[ADJ-SAVE] POST ok', actId);
-      else console.warn('[ADJ-SAVE] POST fail', r.status, r.statusText);
-    }).catch(function(e){console.warn('[ADJ-SAVE] POST error', e);});
-  }catch(e){console.warn('[ADJ-SAVE] exception', e);}
+    fetch(srv+'/adj/'+encodeURIComponent(_adjNorm(actId)),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(merged)}).then(function(r){
+      if(!r.ok) console.warn('[ADJ] POST fail', r.status);
+    }).catch(function(e){console.warn('[ADJ] POST error', e);});
+  }catch(e){console.warn('[ADJ] exception', e);}
 }
 /* ── CELL EDIT PERSISTENCE ── */
 function _cellKey(actId){ return 'garmin-cell-act-'+actId; }
@@ -304,25 +295,45 @@ function _readChipVal(actId, field){
   if(field==='sesPace'||field==='serPace') return _paceStrToSecs(inp.value);
   return parseFloat(inp.value);
 }
+var _origDataCache={};(function(){try{var c=JSON.parse(localStorage.getItem('garmin-orig-cache-v1'));if(c)Object.keys(c).forEach(function(k){_origDataCache[k]=c[k];});}catch(e){}})();
+function _cacheOrigData(actId){
+  var actEl=document.getElementById('act-'+actId);
+  if(!actEl) return;
+  var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
+  var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
+  var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
+  var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
+  _origDataCache[actId]={_origSesDist:oDist,_origSesPace:oDur>0?oDur/oDist:0,
+    _origSerDist:oSer,_origDurSer:oDurSer,_origSerPace:oSer>0?oDurSer/oSer:0};
+  try{ localStorage.setItem('garmin-orig-cache-v1', JSON.stringify(_origDataCache)); }catch(e){}
+}
 function _enrichAdjFromChips(actId, d){
   var changed=false;
+  ["_origSesDist","_origSesPace","_origSerDist","_origDurSer","_origSerPace"].forEach(function(k){if(d[k]===undefined){var c=_origDataCache[actId];if(c&&c[k]!==undefined)d[k]=c[k];}});
   ['serDist','serPace','sesDist','sesPace'].forEach(function(field){
     var v=_readChipVal(actId, field);
     if(v>0 && v!==d[field]){ d[field]=v; changed=true; }
   });
+  var actEl=document.getElementById('act-'+actId);
+  if(actEl) _cacheOrigData(actId);
+  var oSer=actEl?parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0:(d._origSerDist||0);
+  var oDurSer=actEl?parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0:(d._origDurSer||0);
   if(!d.serDist||!d.serPace||!d.sesDist||!d.sesPace){
-    var actEl=document.getElementById('act-'+actId);
     if(actEl){
       var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
       var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
-      var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
-      var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
       if(!d.sesDist && oDist){ d.sesDist=oDist; changed=true; }
       if(!d.sesPace && oDist>0 && oDur>0){ d.sesPace=oDur/oDist; changed=true; }
       if(!d.serDist && oSer){ d.serDist=oSer; changed=true; }
       if(!d.serPace && oSer>0 && oDurSer>0){ d.serPace=oDurSer/oSer; changed=true; }
+    } else {
+      if(!d.sesDist && d._origSesDist){ d.sesDist=d._origSesDist; changed=true; }
+      if(!d.sesPace && d._origSesPace){ d.sesPace=d._origSesPace; changed=true; }
+      if(!d.serDist && d._origSerDist){ d.serDist=d._origSerDist; changed=true; }
+      if(!d.serPace && d._origSerPace){ d.serPace=d._origSerPace; changed=true; }
     }
   }
+  console.log('[ENRICH] hasActEl='+!!actEl+' oSer='+oSer+' changed='+changed+' after serDist='+d.serDist+' serPace='+d.serPace);
   return changed;
 }
 function _hasAdjData(d){
@@ -469,6 +480,7 @@ function _refreshAdjViewer(){
         var d=item.data||{};
         var actKey=item.key.replace(/^garmin-adjust-act-/,'').replace(/^garmin-adjust-/,'');
         _enrichAdjFromChips(actKey, d);
+        console.log('[VIEW-LOCAL] actKey='+actKey+' sesDist='+d.sesDist+' sesPace='+d.sesPace+' serDist='+d.serDist+' serPace='+d.serPace);
         var raw=d._activityName||_getActName(actKey)||_resolveActTitleFromCache(actKey)||actKey;
         var parts=raw.split('\n').filter(Boolean);
         var locTitle, locSub;
@@ -567,6 +579,7 @@ function _refreshAdjViewer(){
     adjFiles.forEach(function(item){
       var d=item.data||{};
       _enrichAdjFromChips(item.id, d);
+      console.log('[VIEW-SRV] id='+item.id+' sesDist='+d.sesDist+' sesPace='+d.sesPace+' serDist='+d.serDist+' serPace='+d.serPace);
       var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
@@ -2379,6 +2392,11 @@ function _onDistEdit(input, actId){
       delete adj[field==='sesDist'?'serDist':'sesDist'];
       delete adj[field==='sesDist'?'serPace':'sesPace'];
     } else {
+      // Read ALL current chip values to preserve serDist/serPace on save
+      ['sesDist','sesPace','serDist','serPace'].forEach(function(f){
+        var v=_readChipVal(actId, f);
+        if(v>0) adj[f]=v;
+      });
       if(field === 'sesDist'){
         adj.sesDist = newVal;
         if(!adj.sesPace && actEl){
@@ -2393,6 +2411,7 @@ function _onDistEdit(input, actId){
         }
       }
     }
+    console.log('[DIST-ADJ] sesDist='+adj.sesDist+' sesPace='+adj.sesPace+' serDist='+adj.serDist+' serPace='+adj.serPace+' keys='+Object.keys(adj).join(','));
     _saveAdj(actId, adj);
     _recalcAdjust(actId);
     if(window._editStack){
@@ -2433,6 +2452,11 @@ function _onPaceEdit(input, actId){
     delete adj[field==='sesPace'?'serPace':'sesPace'];
     delete adj[field==='sesPace'?'serDist':'sesDist'];
   } else {
+    // Read ALL current chip values to preserve serDist/serPace on save
+    ['sesDist','sesPace','serDist','serPace'].forEach(function(f){
+      var v=_readChipVal(actId, f);
+      if(v>0) adj[f]=v;
+    });
     if(field === 'sesPace'){
       adj.sesPace = paceSecs;
       var origDur = parseFloat(act.getAttribute('data-orig-dur')) || 0;
@@ -2443,6 +2467,7 @@ function _onPaceEdit(input, actId){
       if(origDurSer > 0) adj.serDist = origDurSer / paceSecs;
     }
   }
+  console.log('[PACE-ADJ] sesDist='+adj.sesDist+' sesPace='+adj.sesPace+' serDist='+adj.serDist+' serPace='+adj.serPace+' keys='+Object.keys(adj).join(','));
   _saveAdj(actId, adj);
   _recalcAdjust(actId);
   if(window._editStack){
@@ -10881,6 +10906,7 @@ if (document.readyState === 'loading') {
       setTimeout(function(){
         document.querySelectorAll('.actividad').forEach(function(act){
           var id = act.id.replace('act-','');
+          if(typeof _cacheOrigData==='function') _cacheOrigData(id);
           if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
         });
       }, 200);
@@ -10893,6 +10919,7 @@ if (document.readyState === 'loading') {
     setTimeout(function(){
       document.querySelectorAll('.actividad').forEach(function(act){
         var id = act.id.replace('act-','');
+        if(typeof _cacheOrigData==='function') _cacheOrigData(id);
         if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
       });
     }, 200);
