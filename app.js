@@ -199,10 +199,10 @@ function _saveCellState(actId){
 }
 function _loadCellState(actId){
   var act=document.getElementById('act-'+actId);
-  if(!act) return false;
+  if(!act){ console.log('[CELL-LOAD] actId='+actId+' SKIP: no act element'); return false; }
   var saved;
-  try{ saved=JSON.parse(localStorage.getItem(_cellKey(actId))); }catch(e){ return false; }
-  if(!saved) return false;
+  try{ saved=JSON.parse(localStorage.getItem(_cellKey(actId))); }catch(e){ console.log('[CELL-LOAD] actId='+actId+' SKIP: parse error', e.message); return false; }
+  if(!saved){ console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId)); return false; }
   var changed=0;
   Object.keys(saved).forEach(function(id){
     var tr=document.getElementById(id);
@@ -298,7 +298,7 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-   ov.innerHTML='<div id="adj-viewer-panel" style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
+   ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -314,7 +314,7 @@ function _openAdjViewer(){
     var ov2=document.getElementById('adj-viewer-overlay');
     if(p&&ov2){
       var cr=p.getBoundingClientRect();
-      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | overlay: '+Math.round(ov2.getBoundingClientRect().width)+' | maxW: 600px | w: 600px | pad: 20+20 | clientW: '+Math.round(p.clientWidth)+' | scrollW: '+Math.round(p.scrollWidth)+' | offsetW: '+Math.round(p.offsetWidth)+' | css width: 600px';
+      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | overlay: '+Math.round(ov2.getBoundingClientRect().width)+' | maxW: 520px | w: 520px | pad: 20+20 | clientW: '+Math.round(p.clientWidth)+' | scrollW: '+Math.round(p.scrollWidth)+' | offsetW: '+Math.round(p.offsetWidth)+' | css width: 520px';
       console.log('[ADJ-WIDTH]',msg);
       var dbg=document.getElementById('adj-viewer-debug');
       if(dbg) dbg.textContent=msg;
@@ -7774,7 +7774,7 @@ function _ensurePanels() {
   if(!document.getElementById('connector-overlay')){
     var c=document.createElement('div');c.id='connector-overlay';
     c.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-    c.innerHTML='<div style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+    c.innerHTML='<div style="max-width:520px;width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Actividades</span>'
       +'<button onclick="closeConnectorPanel()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -7799,12 +7799,12 @@ function openConnectorPanel() {
   overlay.style.display = 'block';
 
   // Force correct wrapper width
-  var _owr = overlay.querySelector('[style*="max-width:600"]');
-  if(_owr) _owr.style.width = '600px';
+  var _owr = overlay.querySelector('[style*="max-width:520"]');
+  if(_owr) _owr.style.width = '520px';
   setTimeout(function(){
     if(_owr){
       var cr=_owr.getBoundingClientRect();
-      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | clientW: '+Math.round(_owr.clientWidth)+' | scrollW: '+Math.round(_owr.scrollWidth)+' | offsetW: '+Math.round(_owr.offsetWidth)+' | css: max-w 600px w 600px';
+      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | clientW: '+Math.round(_owr.clientWidth)+' | scrollW: '+Math.round(_owr.scrollWidth)+' | offsetW: '+Math.round(_owr.offsetWidth)+' | css: max-w 520px w 520px';
       console.log('[CONN-WIDTH]',msg);
       var dbg=document.getElementById('connector-debug');
       if(dbg) dbg.textContent=msg;
