@@ -194,50 +194,73 @@ function _saveCellState(actId){
   if(Object.keys(data).length===0) return;
   try{
     localStorage.setItem(_cellKey(actId), JSON.stringify(data));
-    console.log('[CELL-SAVE] actId='+actId+' rows='+Object.keys(data).length+' key='+_cellKey(actId));
   }catch(e){console.warn('[CELL-SAVE] localStorage error', e);}
+  var srv=_adjServerUrl();
+  if(srv&&srv!==window.location.origin){
+    fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(r){if(!r.ok)throw new Error(r.status);console.log('[CELL-SAVE] server OK actId='+actId);})
+      .catch(function(e){console.warn('[CELL-SAVE] server error actId='+actId, e.message);});
+  }
+  console.log('[CELL-SAVE] actId='+actId+' rows='+Object.keys(data).length+' key='+_cellKey(actId));
 }
 function _loadCellState(actId){
   var act=document.getElementById('act-'+actId);
   if(!act){ console.log('[CELL-LOAD] actId='+actId+' SKIP: no act element'); return false; }
+  function _applyData(saved){
+    var changed=0;
+    Object.keys(saved).forEach(function(id){
+      var tr=document.getElementById(id);
+      if(!tr) return;
+      var s=saved[id];
+      var cSpd=parseFloat(tr.getAttribute('data-speed'))||0;
+      var cDist=parseFloat(tr.getAttribute('data-dist'))||0;
+      var cDur=parseFloat(tr.getAttribute('data-dur'))||0;
+      if(Math.abs(cSpd-s.speed)<0.0001&&Math.abs(cDist-s.dist)<0.0001&&Math.abs(cDur-s.dur)<0.0001) return;
+      tr.setAttribute('data-speed',s.speed);
+      tr.setAttribute('data-dist',s.dist);
+      tr.setAttribute('data-dur',s.dur);
+      var m1=tr.querySelector('.col-speed .main');
+      var m2=tr.querySelector('.col-pace .main');
+      var m3=tr.querySelector('.col-dist .main');
+      var m4=tr.querySelector('.col-time .main');
+      if(m1) m1.textContent=toKmh(s.speed)+' km/h';
+      if(m2) m2.textContent=toRitmo(s.speed);
+      if(m3) m3.textContent=s.dist.toFixed(2);
+      if(m4){
+        var isMoto=act.getAttribute('data-sport')==='MOTO';
+        m4.textContent=secsToStepStr(s.dur,isMoto?3:1);
+      }
+      changed++;
+    });
+    if(changed>0){
+      console.log('[CELL-LOAD] actId='+actId+' restored='+changed+' rows, calling _refreshAct');
+      if(typeof window._refreshAct==='function') window._refreshAct(actId);
+    }
+    return changed>0;
+  }
+  var srv=_adjServerUrl();
+  if(srv&&srv!==window.location.origin){
+    var xhr=new XMLHttpRequest();
+    xhr.open('GET',srv+'/adj/'+actId,false);
+    try{
+      xhr.send();
+      if(xhr.status===200){
+        var serverData=JSON.parse(xhr.responseText);
+        if(serverData&&Object.keys(serverData).length>0){
+          console.log('[CELL-LOAD] actId='+actId+' loaded from server');
+          try{localStorage.setItem(_cellKey(actId), JSON.stringify(serverData));}catch(e){}
+          return _applyData(serverData);
+        }
+      }
+    }catch(e){console.log('[CELL-LOAD] server fetch failed actId='+actId, e.message);}
+  }
   var saved;
   try{ saved=JSON.parse(localStorage.getItem(_cellKey(actId))); }catch(e){ console.log('[CELL-LOAD] actId='+actId+' SKIP: parse error', e.message); return false; }
   if(!saved){
-    var _all_keys=[], _prefix='garmin-cell-';
-    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf(_prefix)===0) _all_keys.push(k); }
-    console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId)+' | existing cell keys:', _all_keys.length?JSON.stringify(_all_keys):'(none)');
+    console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId));
     return false;
   }
-  var changed=0;
-  Object.keys(saved).forEach(function(id){
-    var tr=document.getElementById(id);
-    if(!tr) return;
-    var s=saved[id];
-    var cSpd=parseFloat(tr.getAttribute('data-speed'))||0;
-    var cDist=parseFloat(tr.getAttribute('data-dist'))||0;
-    var cDur=parseFloat(tr.getAttribute('data-dur'))||0;
-    if(Math.abs(cSpd-s.speed)<0.0001&&Math.abs(cDist-s.dist)<0.0001&&Math.abs(cDur-s.dur)<0.0001) return;
-    tr.setAttribute('data-speed',s.speed);
-    tr.setAttribute('data-dist',s.dist);
-    tr.setAttribute('data-dur',s.dur);
-    var m1=tr.querySelector('.col-speed .main');
-    var m2=tr.querySelector('.col-pace .main');
-    var m3=tr.querySelector('.col-dist .main');
-    var m4=tr.querySelector('.col-time .main');
-    if(m1) m1.textContent=toKmh(s.speed)+' km/h';
-    if(m2) m2.textContent=toRitmo(s.speed);
-    if(m3) m3.textContent=s.dist.toFixed(2);
-    if(m4){
-      var isMoto=act.getAttribute('data-sport')==='MOTO';
-      m4.textContent=secsToStepStr(s.dur,isMoto?3:1);
-    }
-    changed++;
-  });
-  if(changed>0){
-    console.log('[CELL-LOAD] actId='+actId+' restored='+changed+' rows, calling _refreshAct');
-    if(typeof window._refreshAct==='function') window._refreshAct(actId);
-  }
-  return changed>0;
+  return _applyData(saved);
 }
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
@@ -309,8 +332,7 @@ function _openAdjViewer(){
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
     +'<div id="adj-viewer-storage" style="margin-bottom:14px"></div>'
     +'<div id="adj-viewer-list"></div>'
-    +'<div id="adj-viewer-debug" style="font-size:10px;color:#555;margin-top:8px;border-top:1px solid #222;padding-top:6px"></div>'
-    +'</div>';
+     +'</div>';
   document.body.appendChild(ov);
   ov.style.display='block';
   _refreshAdjViewer();
@@ -321,8 +343,6 @@ function _openAdjViewer(){
       var cr=p.getBoundingClientRect();
       var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | overlay: '+Math.round(ov2.getBoundingClientRect().width)+' | maxW: 520px | w: 520px | pad: 20+20 | clientW: '+Math.round(p.clientWidth)+' | scrollW: '+Math.round(p.scrollWidth)+' | offsetW: '+Math.round(p.offsetWidth)+' | css width: 520px';
       console.log('[ADJ-WIDTH]',msg);
-      var dbg=document.getElementById('adj-viewer-debug');
-      if(dbg) dbg.textContent=msg;
     }
   }, 100);
 }
