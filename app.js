@@ -438,11 +438,11 @@ function _refreshAdjViewer(){
           +(locSub?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(locSub)+'</div>':'')
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
           +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-          +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span></div>'
+          +' · <span>Ritmo: '+_fmtPace(d.sesPace)+'</span></div>'
           +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
           +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
           +(d.serDist&&d.serPace?' · ':'')
-          +(d.serPace?'<span>Ritmo activo: '+d.serPace+'</span>':'')
+          +(d.serPace?'<span>Ritmo activo: '+_fmtPace(d.serPace)+'</span>':'')
           +(d.serDist||d.serPace?'</div>':'')
           +'</div></div>'
         +'</div>';
@@ -486,6 +486,18 @@ function _refreshAdjViewer(){
       listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
       return;
     }
+    // Dedup by ID: keep entry with _activityName, prefer more data fields, then latest
+    var idMap={};
+    adjFiles.forEach(function(item){
+      var existing=idMap[item.id];
+      if(!existing){ idMap[item.id]=item; return; }
+      var ek=Object.keys(existing.data||{}).length, nk=Object.keys(item.data||{}).length;
+      var eHas=existing.data&&existing.data._activityName, nHas=item.data&&item.data._activityName;
+      if(!eHas&&nHas) idMap[item.id]=item;
+      else if(nk>ek) idMap[item.id]=item;
+      else if((item.modified||0)>(existing.modified||0)) idMap[item.id]=item;
+    });
+    adjFiles=Object.values(idMap);
     var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+adjFiles.length+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
@@ -514,11 +526,11 @@ function _refreshAdjViewer(){
         +(subtitle?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(subtitle)+'</div>':'')
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-        +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span></div>'
+        +' · <span>Ritmo: '+_fmtPace(d.sesPace)+'</span></div>'
         +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
         +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
         +(d.serDist&&d.serPace?' · ':'')
-        +(d.serPace?'<span>Ritmo activo: '+d.serPace+'</span>':'')
+        +(d.serPace?'<span>Ritmo activo: '+_fmtPace(d.serPace)+'</span>':'')
         +(d.serDist||d.serPace?'</div>':'')
         +'</div>'
         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
@@ -646,6 +658,7 @@ const toRitmo=s=>{
   return m+':'+(scI<10?'0':'')+scI+'.'+scD;
 };
 const ritmoSecs=s=>(!s||s<=0)?0:1000/s;
+function _fmtPace(v){ return v||v===0?Number(v.toFixed(1)):'—'; }
 function _ritmoDispSecs(speed){var t=toRitmo(speed);if(!t)return 0;var ci=t.indexOf(':');return ci>=0?parseInt(t)*60+parseFloat(t.slice(ci+1)):0;}
 function _timeDispSecs(t,dec){var s=secsToStepStr(t,dec);if(!s||s==='—')return 0;var ci=s.indexOf(':');return ci>=0?parseInt(s)*60+parseFloat(s.slice(ci+1)):parseFloat(s)||0;}
 const secsToStr=t=>{if(!t||t<=0||!isFinite(t))return'';const h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=Math.round(t%60);return h>0?h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s:m+':'+(s<10?'0':'')+s};
