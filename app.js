@@ -348,38 +348,6 @@ function _forceSyncAllAdjFromServer(){
     _syncAdjFromServer(id);
   });
 }
-// Auto-save every 5s: read stat chip inputs and persist any changes
-function _autoSaveTick(){
-  document.querySelectorAll('.actividad').forEach(function(act){
-    var id=act.id.replace('act-','');
-    if(!id) return;
-    var adj=_loadAdj(id)||{};
-    var changed=false;
-    act.querySelectorAll('.stat-editable').forEach(function(chip){
-      var field=chip.getAttribute('data-field');
-      if(!field) return;
-      var inp=chip.querySelector('input');
-      if(!inp||!inp.value) return;
-      var raw=inp.value.trim();
-      if(!raw) return;
-      if(field==='sesDist'||field==='serDist'){
-        var n=parseFloat(raw);
-        if(n>0&&Math.abs(n-(adj[field]||0))>0.0001){ adj[field]=n; changed=true; }
-      } else if(field==='sesPace'||field==='serPace'){
-        var s=_paceStrToSecs(raw);
-        if(s&&s>0&&Math.abs(s-(adj[field]||0))>0.5){ adj[field]=s; changed=true; }
-      } else if(field==='sesSpd'||field==='serSpd'){
-        var n=parseFloat(raw);
-        if(n>0&&Math.abs(n-(adj[field]||0))>0.01){ adj[field]=n; changed=true; }
-      }
-    });
-    if(changed) _saveAdj(id, adj);
-  });
-}
-// Start auto-save interval
-if(typeof _autoSaveTimer==='undefined'){
-  window._autoSaveTimer=setInterval(_autoSaveTick, 5000);
-}
 
 function _setViewMode(mode){
   window._showOriginal=mode==='original';
