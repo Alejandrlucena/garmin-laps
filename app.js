@@ -8756,9 +8756,25 @@ setTimeout(function() {
       }
     });
   }
+  function _restoreOriginalRows(actId){
+    if(!window._showOriginal) return;
+    var act = document.getElementById('act-'+actId);
+    if(!act) return;
+    var rows = act.querySelectorAll('tbody tr[data-orig-dist][data-orig-dur][data-orig-speed]');
+    rows.forEach(function(tr){
+      var origDist = tr.getAttribute('data-orig-dist');
+      var origDur = tr.getAttribute('data-orig-dur');
+      var origSpeed = tr.getAttribute('data-orig-speed');
+      if(origDist!==null) tr.setAttribute('data-dist', origDist);
+      if(origDur!==null) tr.setAttribute('data-dur', origDur);
+      if(origSpeed!==null) tr.setAttribute('data-speed', origSpeed);
+    });
+  }
   function _refreshAct(actId){
     _DB('REFRESH', '_refreshAct('+actId+') ENTER stack='+new Error().stack.split('\n').slice(1,4).join(' | '));
     if(!actId) return;
+    // 0) Restore original row data when in Original view mode.
+    _restoreOriginalRows(actId);
     // 1) Dissolve custom groups with <2 children first so .group-lap state can be normalised.
     _recalcCustomGroups(actId);
     // 2) Normalise .group-lap class based on actual DOM position.
