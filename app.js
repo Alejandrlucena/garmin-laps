@@ -167,6 +167,20 @@ function _saveAdj(actId, adj){
   Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
   if(adj._activityName) merged._activityName=adj._activityName;
   _enrichAdjFromChips(actId, merged);
+  // Force fallback: always try data-orig attributes for serDist/serPace
+  if(!merged.serDist||!merged.serPace){
+    var actEl=document.getElementById('act-'+actId);
+    if(actEl){
+      var oSer=parseFloat(actEl.getAttribute('data-orig-dist-ser'))||0;
+      var oDurSer=parseFloat(actEl.getAttribute('data-orig-dur-ser'))||0;
+      var oDist=parseFloat(actEl.getAttribute('data-orig-dist'))||0;
+      var oDur=parseFloat(actEl.getAttribute('data-orig-dur'))||0;
+      if(!merged.sesDist && oDist) merged.sesDist=oDist;
+      if(!merged.sesPace && oDist>0 && oDur>0) merged.sesPace=oDur/oDist;
+      if(!merged.serDist && oSer) merged.serDist=oSer;
+      if(!merged.serPace && oSer>0 && oDurSer>0) merged.serPace=oDurSer/oSer;
+    }
+  }
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
