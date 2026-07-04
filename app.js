@@ -349,6 +349,18 @@ function _updateAdjSyncStatus(msg, color){
 function _injectAdjSyncSection(){}
 function _updateAdjSyncStatusOnOpen(){}
 
+function _syncAdjIdsFromServer(){
+  var srv=_adjServerUrl();
+  if(!srv||srv===window.location.origin) return Promise.resolve();
+  return fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(resp){
+    if(!resp||!resp.files) return;
+    resp.files.forEach(function(item){
+      var d=item.data||{};
+      if(d.sesDist||d.serDist||d.sesPace||d.serPace) _markAdjId(item.id);
+    });
+  }).catch(function(){});
+}
+
 function _resolveActTitleFromCache(actId){
   var allActs=(window._connectorActs||[]).concat(window._connectorBroadActs||[]);
   var act=allActs.find(function(a){return String(a.activityId)===String(actId);});
@@ -369,7 +381,7 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-    ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;width:calc(100% - 80px);min-width:280px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
+    ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;position:relative">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -379,15 +391,6 @@ function _openAdjViewer(){
   document.body.appendChild(ov);
   ov.style.display='block';
   _refreshAdjViewer();
-  setTimeout(function(){
-    var p=document.getElementById('adj-viewer-panel');
-    var ov2=document.getElementById('adj-viewer-overlay');
-    if(p&&ov2){
-      var cr=p.getBoundingClientRect();
-      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | overlay: '+Math.round(ov2.getBoundingClientRect().width)+' | maxW: 520px | w: 520px | pad: 20+20 | clientW: '+Math.round(p.clientWidth)+' | scrollW: '+Math.round(p.scrollWidth)+' | offsetW: '+Math.round(p.offsetWidth)+' | css width: 520px';
-      console.log('[ADJ-WIDTH]',msg);
-    }
-  }, 100);
 }
 function _refreshAdjViewer(){
   var listEl=document.getElementById('adj-viewer-list');
@@ -396,9 +399,7 @@ function _refreshAdjViewer(){
   listEl.innerHTML='<div style="text-align:center;padding:20px;color:#555;font-size:12px">Cargando…</div>';
   storageEl.innerHTML='';
   var srv=_adjServerUrl();
-  var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin){
-    // Show localStorage adjustments when no server is configured
     var localItems=[];
     for(var i=0;i<localStorage.length;i++){
       var k=localStorage.key(i);
@@ -423,11 +424,15 @@ function _refreshAdjViewer(){
         lh+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;overflow:hidden">'
           +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
-          +'<span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-          +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span>'
-          +(d.serDist?' · <span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
-          +(d.serPace?' · <span>Ritmo activo: '+d.serPace+'</span>':'')
-          +'</div></div>';
+          +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
+          +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span></div>'
+          +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
+          +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
+          +(d.serDist&&d.serPace?' · ':'')
+          +(d.serPace?'<span>Ritmo activo: '+d.serPace+'</span>':'')
+          +(d.serDist||d.serPace?'</div>':'')
+          +'</div></div>'
+        +'</div>';
       });
       listEl.innerHTML=lh;
     } else {
@@ -438,7 +443,6 @@ function _refreshAdjViewer(){
   fetch(srv+'/adj').then(function(r){return r.ok?r.json():null;}).then(function(resp){
     if(!resp){ listEl.innerHTML='<div style="color:#666;font-size:12px">Error al consultar el servidor.</div>'; return; }
     var files=resp.files, storage=resp.storage;
-    // Storage
     if(storage&&storage.total>0){
       var usedPct=Math.min(100,Math.round(storage.used/storage.total*100));
       var freePct=100-usedPct;
@@ -454,19 +458,23 @@ function _refreshAdjViewer(){
         +'<span>'+totalStr+' total</span>'
         +'</div></div>';
     }
-    if(!files||!files.length){
-      listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
-      return;
-    }
     var adjFiles=[], orphanFiles=[];
     files.forEach(function(item){
       var d=item.data||{};
       if(d.sesDist||d.serDist||d.sesPace||d.serPace) adjFiles.push(item);
       else orphanFiles.push(item);
     });
-    var showCount=adjFiles.length+(orphanFiles.length>0?1:0);
+    if(orphanFiles.length){
+      orphanFiles.forEach(function(item){
+        fetch(srv+'/adj/'+encodeURIComponent(item.id),{method:'DELETE'}).catch(function(){});
+      });
+    }
+    if(!adjFiles.length){
+      listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
+      return;
+    }
     var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+showCount+' ajuste(s)</span>'
+      +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+adjFiles.length+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
       +'</div>';
     adjFiles.forEach(function(item){
@@ -493,10 +501,13 @@ function _refreshAdjViewer(){
         +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
         +(subtitle?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(subtitle)+'</div>':'')
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
-        +'<span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-        +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span>'
-        +(d.serDist?' · <span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
-        +(d.serPace?' · <span>Ritmo activo: '+d.serPace+'</span>':'')
+        +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
+        +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span></div>'
+        +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
+        +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
+        +(d.serDist&&d.serPace?' · ':'')
+        +(d.serPace?'<span>Ritmo activo: '+d.serPace+'</span>':'')
+        +(d.serDist||d.serPace?'</div>':'')
         +'</div>'
         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
         +'<span>'+fecha+'</span>'
@@ -505,17 +516,6 @@ function _refreshAdjViewer(){
         +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
         +'</div>';
     });
-    if(orphanFiles.length){
-      h+='<div style="margin-top:12px;padding:8px 10px;background:#0d0e12;border-radius:6px">'
-        +'<div style="font-size:11px;color:#8890a0;margin-bottom:6px">'+orphanFiles.length+' entrada(s) sin datos de ajuste (ediciones de celda antiguas que sobrescribieron los ajustes — puedes eliminarlas)'+'</div>';
-      orphanFiles.forEach(function(item){
-        h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
-          +'<span style="font-size:11px;color:#666;word-break:break-all;flex:1;min-width:0">'+escHtml(item.id)+'</span>'
-          +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:2px 8px;border-radius:3px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Eliminar</button>'
-          +'</div>';
-      });
-      h+='</div>';
-    }
     listEl.innerHTML=h;
   }).catch(function(){
     listEl.innerHTML='<div style="color:#e8594a;font-size:12px;padding:20px 0;text-align:center">Error de conexión con el servidor.</div>';
@@ -7864,7 +7864,7 @@ function _ensurePanels() {
   if(!document.getElementById('connector-overlay')){
     var c=document.createElement('div');c.id='connector-overlay';
     c.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-    c.innerHTML='<div style="max-width:520px;width:calc(100% - 80px);min-width:280px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+    c.innerHTML='<div style="max-width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Actividades</span>'
       +'<button onclick="closeConnectorPanel()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -7887,19 +7887,6 @@ function openConnectorPanel() {
   const searchWrap = document.getElementById('connector-search-wrap');
   const dateWrap = document.getElementById('connector-date-wrap');
   overlay.style.display = 'block';
-
-  // Force correct wrapper width
-  var _owr = overlay.querySelector('[style*="max-width:520"]');
-  if(_owr) _owr.style.width = '520px';
-  setTimeout(function(){
-    if(_owr){
-      var cr=_owr.getBoundingClientRect();
-      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | clientW: '+Math.round(_owr.clientWidth)+' | scrollW: '+Math.round(_owr.scrollWidth)+' | offsetW: '+Math.round(_owr.offsetWidth)+' | css: max-w 520px w 520px';
-      console.log('[CONN-WIDTH]',msg);
-      var dbg=document.getElementById('connector-debug');
-      if(dbg) dbg.textContent=msg;
-    }
-  }, 100);
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
@@ -7959,12 +7946,22 @@ function openConnectorPanel() {
     searchWrap.style.display = 'block';
     if (typeFilter) typeFilter.style.display = 'flex';
     _renderConnectorActs(toShow.filter(_connectorTypeMatch));
+    _syncAdjIdsFromServer().then(function(){
+      var ov=document.getElementById('connector-overlay');
+      if(ov&&ov.style.display!=='none') _renderConnectorActs(_connectorActs.filter(_connectorTypeMatch));
+    });
     if (!_connectorRecentReady) _connectorStartupPrefetch();
     _prefetchConnectorBroad();
     _startConnectorPolling();
     return;
   }
 
+  _syncAdjIdsFromServer().then(function(){
+    var ov=document.getElementById('connector-overlay');
+    if(ov&&ov.style.display!=='none'&&_connectorActs&&_connectorActs.length){
+      _renderConnectorActs(_connectorActs.filter(_connectorTypeMatch));
+    }
+  });
   _prefetchConnectorBroad();
   _loadConnectorByDate();
   _startConnectorPolling();
