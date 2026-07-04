@@ -126,7 +126,15 @@ function _loadAdj(actId){
 function _getActName(actId){
   var act=document.getElementById('act-'+actId);
   if(act){
-    var nombre=act.getAttribute('data-act-name')||actId;
+    var lbl=act.querySelector('.lbl');
+    var nombre;
+    if(lbl){
+      var txt=lbl.textContent.trim();
+      var parts=txt.split('—').map(function(s){return s.trim();});
+      nombre=parts[1]||parts[0];
+    } else {
+      nombre=act.getAttribute('data-act-name')||actId;
+    }
     var fecha=act.getAttribute('data-act-date')||'';
     var tipo=act.getAttribute('data-act-type')||'';
     var dist=act.getAttribute('data-act-dist')||'';
@@ -222,17 +230,6 @@ function _openAdjViewer(){
     +'</div>';
   document.body.appendChild(ov);
   ov.style.display='block';
-  // Debug: log widths of both overlays
-  setTimeout(function(){
-    var cw=document.getElementById('connector-overlay');
-    var aw=document.getElementById('adj-viewer-overlay');
-    if(cw&&aw){
-      var ci=cw.querySelector('div>div'), ai=aw.querySelector('div>div');
-      if(ci&&ai) console.log('[WIDTH] Actividades inner:', ci.offsetWidth, '| Almacenamiento inner:', ai.offsetWidth, '| wrapper:', ci.parentElement.offsetWidth, ci.parentElement.tagName, ci.parentElement.id);
-      var cw2=cw.querySelector('[style*="max-width:600"]'); if(cw2) console.log('[WIDTH] Actividades wrapper (by query):', cw2.offsetWidth);
-      var aw2=aw.querySelector('[style*="max-width:600"]'); if(aw2) console.log('[WIDTH] Almacenamiento wrapper (by query):', aw2.offsetWidth);
-    }
-  }, 100);
   _refreshAdjViewer();
 }
 function _refreshAdjViewer(){
@@ -7544,10 +7541,12 @@ function _renderConnectorActs(acts) {
     var dur  = a.durationMin > 0 ? (function(){var s=Math.round(a.durationMin*60),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'min';return m+'min';})() : '';
     var type = escHtml(_CONNECTOR_TIPOS[a.activityType] || (a.activityType || ''));
     var meta = [date, type, dist, dur].filter(Boolean).join(' · ');
+    var hasAdj = !!_loadAdj(a.activityId);
+    var modChip = hasAdj ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap">Modificada</span>' : '';
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">' + name + '</div>'
+      + '<div style="font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">' + name + modChip + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
   }).join('');
@@ -7672,7 +7671,7 @@ function _ensurePanels() {
   if(!document.getElementById('connector-overlay')){
     var c=document.createElement('div');c.id='connector-overlay';
     c.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-    c.innerHTML='<div style="max-width:600px;width:100%;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+    c.innerHTML='<div style="max-width:600px;width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Actividades</span>'
       +'<button onclick="closeConnectorPanel()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -7695,6 +7694,10 @@ function openConnectorPanel() {
   const searchWrap = document.getElementById('connector-search-wrap');
   const dateWrap = document.getElementById('connector-date-wrap');
   overlay.style.display = 'block';
+
+  // Force correct wrapper width
+  var _owr = overlay.querySelector('[style*="max-width:600"]');
+  if(_owr) _owr.style.width = '600px';
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
@@ -7957,15 +7960,15 @@ function loadActivityFromConnector(activityId) {
           });
           if (fitEntry) {
             return fitEntry.async('arraybuffer').then(function(fitBuf) {
-              _parseFitBufferConnector(fitBuf, fitEntry.name);
+              _parseFitBufferConnector(fitBuf, fitEntry.name, activityId);
             });
           }
-          _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit');
+          _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit', activityId);
         }).catch(function() {
-          _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit');
+          _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit', activityId);
         });
       }
-      _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit');
+      _parseFitBufferConnector(buf, 'activity_' + activityId + '.fit', activityId);
     })
     .catch(function(err) {
       closeConnectorPanel();
@@ -7975,7 +7978,7 @@ function loadActivityFromConnector(activityId) {
     });
 }
 
-function _parseFitBufferConnector(buf, filename) {
+function _parseFitBufferConnector(buf, filename, activityId) {
   var errEl = document.getElementById('error-msg');
   if (typeof FitParser === 'undefined') {
     errEl.textContent = 'Librería FIT no cargada aún. Espera un momento y vuelve a intentarlo.';
@@ -7996,6 +7999,13 @@ function _parseFitBufferConnector(buf, filename) {
       }
       try {
         var json = fitToGarminJson(fitData, filename);
+        if (filename && activityId) {
+          json.activity_id = String(activityId);
+          var connAct = window._connectorActs && _connectorActs.find(function(a){ return String(a.activityId) === String(activityId); });
+          if (connAct && connAct.activityName) {
+            json.activity_name = connAct.activityName;
+          }
+        }
         document.getElementById('json-input').value = JSON.stringify(json, null, 2);
         render();
         _updateClearBtnState();
