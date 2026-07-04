@@ -164,14 +164,20 @@ function _saveAdj(actId, adj){
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
+  console.log('[ADJ-SAVE] actId='+actId+' key='+_adjKey(actId)+' hasDist='+(adj.sesDist>0)+' hasSer='+(adj.serDist>0));
   var srv=_adjServerUrl();
-  if(!srv||srv===window.location.origin) return;
+  if(!srv||srv===window.location.origin){
+    console.log('[ADJ-SAVE] skip POST: srv='+srv+' origin='+window.location.origin);
+    return;
+  }
   try{
     var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
+    console.log('[ADJ-SAVE] POST', url, JSON.stringify(adj).slice(0,200));
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
-      if(r.ok) console.log('[ADJ] POST ok', actId);
-    }).catch(function(){});
-  }catch(e){}
+      if(r.ok) console.log('[ADJ-SAVE] POST ok', actId);
+      else console.warn('[ADJ-SAVE] POST fail', r.status, r.statusText);
+    }).catch(function(e){console.warn('[ADJ-SAVE] POST error', e);});
+  }catch(e){console.warn('[ADJ-SAVE] exception', e);}
 }
 function _hasAdjData(d){
   return d && (d.sesDist || d.serDist || d.sesPace || d.serPace);
@@ -791,6 +797,7 @@ function _addEditModeToggle(act){
     console.log('[EDIT] toggle edit-mode editor on='+on+' _showOriginal='+window._showOriginal+' editable='+document.querySelector('.editing-on .stat-editable input'));
     btn.classList.toggle('active', on);
     try{localStorage.setItem(_editModeKey(act), on?'1':'0');}catch(e){}
+    if(on && window._showOriginal) _setViewMode('personalizado');
     if(typeof window._updateFabState==='function') window._updateFabState();
     var _af=document.getElementById('lap-act-fab');
     if(_af)_af.classList.remove('expanded');
@@ -7720,9 +7727,9 @@ function _ensurePanels() {
       +'<input id="connector-date-from" type="date" style="padding:6px 10px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:12px">'
       +'<input id="connector-date-to" type="date" style="padding:6px 10px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:12px;margin-left:8px">'
       +'<button onclick="_connectorFilterByDate()" style="padding:6px 12px;border-radius:6px;border:1px solid #2a2d35;background:#0d0e12;color:#eaeaea;font-size:12px;cursor:pointer;margin-left:8px">Filtrar</button></div>'
-      +'<div id="connector-type-filter" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"></div>'
-      +'<div id="connector-list" style="min-height:100px"></div></div>';
-    document.body.appendChild(c);
+       +'<div id="connector-type-filter" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"></div>'
+       +'<div id="connector-list" style="min-height:100px"></div>'
+        +'<div id="connector-debug" style="font-size:10px;color:#555;margin-top:8px;border-top:1px solid #222;padding-top:6px"></div></div>';
   }
 }
 
@@ -7737,6 +7744,15 @@ function openConnectorPanel() {
   // Force correct wrapper width
   var _owr = overlay.querySelector('[style*="max-width:600"]');
   if(_owr) _owr.style.width = '600px';
+  setTimeout(function(){
+    if(_owr){
+      var cr=_owr.getBoundingClientRect();
+      var msg='panel: '+Math.round(cr.width)+'x'+Math.round(cr.height)+' | clientW: '+Math.round(_owr.clientWidth)+' | scrollW: '+Math.round(_owr.scrollWidth)+' | offsetW: '+Math.round(_owr.offsetWidth)+' | css: max-w 600px w 600px';
+      console.log('[CONN-WIDTH]',msg);
+      var dbg=document.getElementById('connector-debug');
+      if(dbg) dbg.textContent=msg;
+    }
+  }, 100);
 
   // Añadir botón Login si no existe
   if (!document.getElementById('connector-login-link')) {
