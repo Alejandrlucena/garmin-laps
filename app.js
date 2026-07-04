@@ -161,11 +161,17 @@ function _getActName(actId){
 }
 function _saveAdj(actId, adj){
   adj._activityName=_getActName(actId);
-  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
+  // Merge with existing data to preserve fields not being edited (serDist, serPace)
+  var existing=_loadAdj(actId)||{};
+  var merged={};
+  Object.keys(existing).forEach(function(k){ merged[k]=existing[k]; });
+  Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
+  if(adj._activityName) merged._activityName=adj._activityName;
+  try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
-  if(_hasAdjData(adj)) _markAdjId(actId); else _unmarkAdjId(actId);
-  console.log('[ADJ-SAVE] actId='+actId+' key='+_adjKey(actId)+' hasDist='+(adj.sesDist>0)+' hasSer='+(adj.serDist>0));
+  if(_hasAdjData(merged)) _markAdjId(actId); else _unmarkAdjId(actId);
+  console.log('[ADJ-SAVE] actId='+actId+' key='+_adjKey(actId)+' hasDist='+(merged.sesDist>0)+' hasSer='+(merged.serDist>0));
   var srv=_adjServerUrl();
   if(!srv||srv===window.location.origin){
     console.log('[ADJ-SAVE] skip POST: srv='+srv+' origin='+window.location.origin);
@@ -173,8 +179,8 @@ function _saveAdj(actId, adj){
   }
   try{
     var url=srv+'/adj/'+encodeURIComponent(_adjNorm(actId));
-    console.log('[ADJ-SAVE] POST', url, JSON.stringify(adj).slice(0,200));
-    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)}).then(function(r){
+    console.log('[ADJ-SAVE] POST', url, JSON.stringify(merged).slice(0,200));
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(merged)}).then(function(r){
       if(r.ok) console.log('[ADJ-SAVE] POST ok', actId);
       else console.warn('[ADJ-SAVE] POST fail', r.status, r.statusText);
     }).catch(function(e){console.warn('[ADJ-SAVE] POST error', e);});
@@ -7741,9 +7747,9 @@ function _renderConnectorActs(acts) {
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px;line-height:13px">'
       + '<span>'+name+'</span>'
-      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;margin-left:8px">Modificada</span>':'')
+      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;line-height:13px">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
