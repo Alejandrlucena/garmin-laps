@@ -126,20 +126,15 @@ function _loadAdj(actId){
 function _getActName(actId){
   var act=document.getElementById('act-'+actId);
   if(act){
-    var lbl=act.querySelector('.lbl');
-    if(lbl){
-      var text=lbl.textContent.trim();
-      var parts=text.split(' — ');
-      var nombre=parts[1]||parts[0]||actId;
-      if(parts.length>1){
-        var fecha=parts[0]||'', tipo=parts[2]||'', dist=parts[3]||'';
-        var durStr='';
-        var durSecs=parseFloat(act.getAttribute('data-orig-dur'));
-        if(durSecs>0){var h=Math.floor(durSecs/3600),m=Math.floor((durSecs%3600)/60);durStr=h>0?h+'h '+m+'min':m+'min';}
-        return nombre+'\n'+[fecha,tipo,dist,durStr].filter(Boolean).join(' · ');
-      }
-      return text;
-    }
+    var nombre=act.getAttribute('data-act-name')||actId;
+    var fecha=act.getAttribute('data-act-date')||'';
+    var tipo=act.getAttribute('data-act-type')||'';
+    var dist=act.getAttribute('data-act-dist')||'';
+    var durStr='';
+    var durSecs=parseFloat(act.getAttribute('data-act-dur'));
+    if(durSecs>0){var h=Math.floor(durSecs/3600),m=Math.floor((durSecs%3600)/60);durStr=h>0?h+'h '+m+'min':m+'min';}
+    var meta=[fecha,tipo,dist,durStr].filter(Boolean);
+    return meta.length?nombre+'\n'+meta.join(' · '):nombre;
   }
   return actId;
 }
@@ -227,6 +222,15 @@ function _openAdjViewer(){
     +'</div>';
   document.body.appendChild(ov);
   ov.style.display='block';
+  // Debug: log widths of both overlays
+  setTimeout(function(){
+    var cw=document.getElementById('connector-overlay');
+    var aw=document.getElementById('adj-viewer-overlay');
+    if(cw&&aw){
+      var ci=cw.querySelector('div>div'), ai=aw.querySelector('div>div');
+      if(ci&&ai) console.log('[WIDTH] Actividades inner:', ci.offsetWidth, '| Almacenamiento inner:', ai.offsetWidth);
+    }
+  }, 100);
   _refreshAdjViewer();
 }
 function _refreshAdjViewer(){
@@ -2240,6 +2244,24 @@ function _applyAdjustUI(actId){
      _setChip('serDist',_nA.toFixed(2));
      if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',_secsToPaceStr(origDurSer/_nA));}
    }
+  // Add/remove "Modificada" badge
+  var mc = act.querySelector('.adj-mod-chip');
+  var hasAdj = adj.sesDist > 0 || adj.serDist > 0 || adj.sesPace > 0 || adj.serPace > 0;
+  if (hasAdj) {
+    if (!mc) {
+      var lbl = act.querySelector('.lbl');
+      if (lbl) {
+        mc = document.createElement('span');
+        mc.className = 'adj-mod-chip';
+        mc.textContent = 'Modificada';
+        mc.style.cssText = 'display:inline-block;font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a';
+        lbl.parentNode.insertBefore(mc, lbl.nextSibling);
+      }
+    }
+  } else if (mc) {
+    mc.remove();
+  }
+
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
 
@@ -3714,7 +3736,7 @@ var allR=[];
 
   var lblContent=(d.fecha||'')+' — '+(d.nombre||'')+' — '+(d.tipo||'')+' — '+(d.distancia_total||'');
 
-  return'<div class="actividad" id="act-'+_actId+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'">'
+     return'<div class="actividad" id="act-'+_actId+'" data-act-name="'+escHtml(d.nombre||'')+'" data-act-date="'+escHtml(d.fecha||'')+'" data-act-type="'+escHtml(d.tipo||'')+'" data-act-dist="'+escHtml(d.distancia_total||'')+'" data-act-dur="'+totalDurSes+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'">'
     +'<div class="lbl" contenteditable="true" spellcheck="false"'
     +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}"'
     +' title="Haz clic para editar">'+lblContent+'</div>'
