@@ -486,18 +486,30 @@ function _refreshAdjViewer(){
       listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
       return;
     }
-    // Dedup by ID: keep entry with _activityName, prefer more data fields, then latest
-    var idMap={};
+    // Dedup by ID: merge duplicates keeping best data + best name, show only one
+    var idMap={}, idGroups={};
     adjFiles.forEach(function(item){
-      var existing=idMap[item.id];
-      if(!existing){ idMap[item.id]=item; return; }
-      var ek=Object.keys(existing.data||{}).length, nk=Object.keys(item.data||{}).length;
-      var eHas=existing.data&&existing.data._activityName, nHas=item.data&&item.data._activityName;
-      if(!eHas&&nHas) idMap[item.id]=item;
-      else if(nk>ek) idMap[item.id]=item;
-      else if((item.modified||0)>(existing.modified||0)) idMap[item.id]=item;
+      if(!idGroups[item.id]) idGroups[item.id]=[];
+      idGroups[item.id].push(item);
     });
-    adjFiles=Object.values(idMap);
+    adjFiles=[];
+    Object.keys(idGroups).forEach(function(id){
+      var group=idGroups[id];
+      if(group.length===1){ adjFiles.push(group[0]); return; }
+      var best=JSON.parse(JSON.stringify(group[0]));
+      for(var i=1;i<group.length;i++){
+        var gi=group[i];
+        var bk=Object.keys(best.data||{}).length, gk=Object.keys(gi.data||{}).length;
+        var bName=best.data&&best.data._activityName, gName=gi.data&&gi.data._activityName;
+        if(gName&&(!bName||/^\d+$/.test(String(bName).trim()))&&!/^\d+$/.test(String(gName).trim()))
+          best.data._activityName=gName;
+        if(gk>bk){Object.keys(gi.data).forEach(function(k){if(k!=='_activityName')best.data[k]=gi.data[k];});}
+        Object.keys(gi.data).forEach(function(k){if(best.data[k]===undefined)best.data[k]=gi.data[k];});
+        if((gi.modified||0)>(best.modified||0)) best.modified=gi.modified;
+        if((gi.size||0)>(best.size||0)) best.size=gi.size;
+      }
+      adjFiles.push(best);
+    });
     var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+adjFiles.length+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
