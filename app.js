@@ -282,9 +282,9 @@ function _refreshAdjViewer(){
       }
       var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'';
       var sizeStr=item.size?_fmtBytes(item.size):'';
-      h+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
+      h+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;display:flex;justify-content:space-between;align-items:center;overflow:hidden">'
         +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:13px;font-weight:600;color:#eaeaea">'+escHtml(title)+'</div>'
+        +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
         +(subtitle?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(subtitle)+'</div>':'')
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
