@@ -127,12 +127,24 @@ function _getActName(actId){
   var act=document.getElementById('act-'+actId);
   if(act){
     var lbl=act.querySelector('.lbl');
-    if(lbl) return lbl.textContent.trim();
+    if(lbl){
+      var text=lbl.textContent.trim();
+      var parts=text.split(' — ');
+      var nombre=parts[1]||parts[0]||actId;
+      if(parts.length>1){
+        var fecha=parts[0]||'', tipo=parts[2]||'', dist=parts[3]||'';
+        var durStr='';
+        var durSecs=parseFloat(act.getAttribute('data-orig-dur'));
+        if(durSecs>0){var h=Math.floor(durSecs/3600),m=Math.floor((durSecs%3600)/60);durStr=h>0?h+'h '+m+'min':m+'min';}
+        return nombre+'\n'+[fecha,tipo,dist,durStr].filter(Boolean).join(' · ');
+      }
+      return text;
+    }
   }
   return actId;
 }
 function _saveAdj(actId, adj){
-  if(!adj._activityName) adj._activityName=_getActName(actId);
+  adj._activityName=_getActName(actId);
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(adj)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
   }
@@ -152,7 +164,7 @@ function _syncAdjFromServer(actId){
   fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
     if(d&&typeof d==='object'&&Object.keys(d).length){
       try{ localStorage.setItem(_adjKey(actId), JSON.stringify(d)); }catch(e){}
-      if(typeof _applyAdjustUI==='function') _applyAdjustUI(actId);
+      if(typeof _recalcAdjust==='function') _recalcAdjust(actId);
     }
   }).catch(function(){});
 }
@@ -182,7 +194,7 @@ function _syncAllAdjFromServer(){
     fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(d){
       if(d&&typeof d==='object'&&Object.keys(d).length){
         try{ localStorage.setItem(_adjKey(id), JSON.stringify(d)); }catch(e){}
-        if(typeof _applyAdjustUI==='function') _applyAdjustUI(id);
+        if(typeof _recalcAdjust==='function') _recalcAdjust(id);
         count++;      }
     }).catch(function(){});
   });
@@ -206,7 +218,7 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-  ov.innerHTML='<div style="max-width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
+  ov.innerHTML='<div style="max-width:600px;width:100%;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -256,8 +268,18 @@ function _refreshAdjViewer(){
       var d=item.data||{};
       var raw=d._activityName||'';
       var parts=raw.split('\n').filter(Boolean);
-      var title=parts[0]||item.id;
-      var subtitle=parts.length>1?parts.slice(1).join(' · '):(raw?item.id:'');
+      var title, subtitle;
+      if(parts.length>1){
+        title=parts[0];
+        subtitle=parts.slice(1).join(' · ');
+      } else if(raw.includes(' — ')){
+        var old=raw.split(' — ');
+        title=old[1]||old[0];
+        subtitle=old.filter(function(_,i){return i!==1;}).join(' · ');
+      } else {
+        title=raw||item.id;
+        subtitle=raw?item.id:'';
+      }
       var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'';
       var sizeStr=item.size?_fmtBytes(item.size):'';
       h+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;display:flex;justify-content:space-between;align-items:center">'
@@ -7597,7 +7619,7 @@ function _ensurePanels() {
   if(!document.getElementById('connector-overlay')){
     var c=document.createElement('div');c.id='connector-overlay';
     c.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-    c.innerHTML='<div style="max-width:600px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px">'
+    c.innerHTML='<div style="max-width:600px;width:100%;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Actividades</span>'
       +'<button onclick="closeConnectorPanel()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
