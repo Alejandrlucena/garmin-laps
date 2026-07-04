@@ -199,7 +199,9 @@ function _saveCellState(actId){
   _markAdjId(actId);
   var srv=_adjServerUrl();
   if(srv&&srv!==window.location.origin){
-    fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+    var adj=_loadAdj(actId)||{};
+    adj._cellData=data;
+    fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)})
       .then(function(r){if(!r.ok)throw new Error(r.status);console.log('[CELL-SAVE] server OK actId='+actId);})
       .catch(function(e){console.warn('[CELL-SAVE] server error actId='+actId, e.message);});
   }
@@ -249,10 +251,18 @@ function _loadCellState(actId){
       if(xhr.status===200){
         var serverData=JSON.parse(xhr.responseText);
         if(serverData&&Object.keys(serverData).length>0){
-          console.log('[CELL-LOAD] actId='+actId+' loaded from server');
-          try{localStorage.setItem(_cellKey(actId), JSON.stringify(serverData));}catch(e){}
-          _markAdjId(actId);
-          return _applyData(serverData);
+          var cellData=serverData._cellData;
+          if(!cellData){
+            var keys=Object.keys(serverData);
+            var first=serverData[keys[0]];
+            if(first&&typeof first==='object'&&'speed' in first) cellData=serverData;
+          }
+          if(cellData){
+            console.log('[CELL-LOAD] actId='+actId+' loaded from server');
+            try{localStorage.setItem(_cellKey(actId), JSON.stringify(cellData));}catch(e){}
+            _markAdjId(actId);
+            return _applyData(cellData);
+          }
         }
       }
     }catch(e){console.log('[CELL-LOAD] server fetch failed actId='+actId, e.message);}
@@ -359,7 +369,7 @@ function _openAdjViewer(){
   ov.addEventListener('click',function(e){if(e.target===ov)ov.style.display='none';});
   var _adjEsc=function(e){if(e.key==='Escape'&&ov.style.display!=='none'){ov.style.display='none';document.removeEventListener('keydown',_adjEsc);}};
   document.addEventListener('keydown',_adjEsc);
-   ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
+    ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;width:calc(100% - 80px);min-width:280px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden;position:relative">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
     +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
@@ -448,11 +458,18 @@ function _refreshAdjViewer(){
       listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
       return;
     }
+    var adjFiles=[], orphanFiles=[];
+    files.forEach(function(item){
+      var d=item.data||{};
+      if(d.sesDist||d.serDist||d.sesPace||d.serPace) adjFiles.push(item);
+      else orphanFiles.push(item);
+    });
+    var showCount=adjFiles.length+(orphanFiles.length>0?1:0);
     var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-      +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+files.length+' ajuste(s)</span>'
+      +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+showCount+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
       +'</div>';
-    files.forEach(function(item){
+    adjFiles.forEach(function(item){
       var d=item.data||{};
       var rName=_resolveActTitleFromCache(item.id);
       var raw=d._activityName||rName||'';
@@ -488,6 +505,17 @@ function _refreshAdjViewer(){
         +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
         +'</div>';
     });
+    if(orphanFiles.length){
+      h+='<div style="margin-top:12px;padding:8px 10px;background:#0d0e12;border-radius:6px">'
+        +'<div style="font-size:11px;color:#8890a0;margin-bottom:6px">'+orphanFiles.length+' entrada(s) sin datos de ajuste (ediciones de celda antiguas que sobrescribieron los ajustes — puedes eliminarlas)'+'</div>';
+      orphanFiles.forEach(function(item){
+        h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+          +'<span style="font-size:11px;color:#666;word-break:break-all;flex:1;min-width:0">'+escHtml(item.id)+'</span>'
+          +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:2px 8px;border-radius:3px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Eliminar</button>'
+          +'</div>';
+      });
+      h+='</div>';
+    }
     listEl.innerHTML=h;
   }).catch(function(){
     listEl.innerHTML='<div style="color:#e8594a;font-size:12px;padding:20px 0;text-align:center">Error de conexión con el servidor.</div>';
@@ -7836,7 +7864,7 @@ function _ensurePanels() {
   if(!document.getElementById('connector-overlay')){
     var c=document.createElement('div');c.id='connector-overlay';
     c.style.cssText='display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto';
-    c.innerHTML='<div style="max-width:520px;width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
+    c.innerHTML='<div style="max-width:520px;width:calc(100% - 80px);min-width:280px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;box-sizing:border-box;overflow:hidden">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
       +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Actividades</span>'
       +'<button onclick="closeConnectorPanel()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
