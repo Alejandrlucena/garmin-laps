@@ -161,13 +161,11 @@ function _getActName(actId){
 }
 function _saveAdj(actId, adj){
   adj._activityName=_getActName(actId);
-  // Merge with existing data to preserve fields not being edited (serDist, serPace)
   var existing=_loadAdj(actId)||{};
   var merged={};
   Object.keys(existing).forEach(function(k){ merged[k]=existing[k]; });
   Object.keys(adj).forEach(function(k){ merged[k]=adj[k]; });
   if(adj._activityName) merged._activityName=adj._activityName;
-  // Fallback: read missing fields from chip DOM
   _enrichAdjFromChips(actId, merged);
   try{ localStorage.setItem(_adjKey(actId), JSON.stringify(merged)); } catch(e){
     console.warn('[ADJ] localStorage setItem failed for', _adjKey(actId), e);
@@ -298,7 +296,6 @@ function _enrichAdjFromChips(actId, d){
     var v=_readChipVal(actId, field);
     if(v>0 && v!==d[field]){ d[field]=v; changed=true; }
   });
-  // Fallback: try original data attributes from DOM (always available)
   if(!d.serDist||!d.serPace||!d.sesDist||!d.sesPace){
     var actEl=document.getElementById('act-'+actId);
     if(actEl){
@@ -478,12 +475,12 @@ function _refreshAdjViewer(){
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
           +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
           +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
-           +'<div style="margin-top:2px">'
-           +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
-           +' · '
-           +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
-           +'</div>'
-           +'</div></div>'
+          +'<div style="margin-top:2px">'
+          +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
+          +' · '
+          +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
+          +'</div>'
+          +'</div></div>'
         +'</div>';
       });
       listEl.innerHTML=lh;
@@ -553,10 +550,10 @@ function _refreshAdjViewer(){
       +'<span style="font-weight:600;color:#eaeaea;font-size:13px">'+adjFiles.length+' ajuste(s)</span>'
       +'<button onclick="if(confirm(\'¿Borrar todos los ajustes guardados en el servidor?\')){_deleteAllAdjServer()}" style="padding:4px 12px;border-radius:4px;border:1px solid #5a2a2a;background:#1a0e0e;color:#e8594a;font-size:10px;cursor:pointer">Borrar todo</button>'
       +'</div>';
-      adjFiles.forEach(function(item){
-        var d=item.data||{};
-        _enrichAdjFromChips(item.id, d);
-        var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
+    adjFiles.forEach(function(item){
+      var d=item.data||{};
+      _enrichAdjFromChips(item.id, d);
+      var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
       if(parts.length>1){
@@ -579,17 +576,17 @@ function _refreshAdjViewer(){
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
         +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
-           +'<div style="margin-top:2px">'
-           +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
-           +' · '
-           +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
-           +'</div>'
-           +'</div>'
-         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
-         +'<span>'+fecha+'</span>'
-         +(sizeStr?' · <span>'+sizeStr+'</span>':'')
-         +'</div></div>'
-         +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
+        +'<div style="margin-top:2px">'
+        +'<span>Dist activa: '+(d.serDist?d.serDist.toFixed(2)+' km':'—')+'</span>'
+        +' · '
+        +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
+        +'</div>'
+        +'</div>'
+        +'<div style="font-size:10px;color:#505870;margin-top:2px">'
+        +'<span>'+fecha+'</span>'
+        +(sizeStr?' · <span>'+sizeStr+'</span>':'')
+        +'</div></div>'
+        +'<button onclick="_deleteAdjServer(\''+item.id+'\');_refreshAdjViewer()" style="flex-shrink:0;padding:4px 10px;border-radius:4px;border:1px solid #3a2020;background:#1a0e0e;color:#e8594a;font-size:11px;cursor:pointer;margin-left:10px">Eliminar</button>'
         +'</div>';
     });
     listEl.innerHTML=h;
@@ -7784,7 +7781,6 @@ function _renderConnectorActs(acts) {
       + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
       + '<span>'+name+'</span>'
       + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;margin-left:8px">Modificada</span>':'')
-      + '</div>'
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
