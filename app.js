@@ -383,7 +383,7 @@ function _openAdjViewer(){
   document.addEventListener('keydown',_adjEsc);
     ov.innerHTML='<div id="adj-viewer-panel" style="max-width:520px;margin:40px auto;background:#1a1c23;border-radius:10px;padding:20px;position:relative">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
-    +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Almacenamiento - Ajustes guardados</span>'
+    +'<span style="font-size:15px;font-weight:700;color:#eaeaea">Ajustes guardados</span>'
     +'<button onclick="this.closest(\'#adj-viewer-overlay\').style.display=\'none\'" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer">✕</button></div>'
     +'<div id="adj-viewer-storage" style="margin-bottom:14px"></div>'
     +'<div id="adj-viewer-list"></div>'
@@ -419,10 +419,23 @@ function _refreshAdjViewer(){
       localItems.forEach(function(item){
         var d=item.data||{};
         var actKey=item.key.replace(/^garmin-adjust-act-/,'').replace(/^garmin-adjust-/,'');
-        var raw=d._activityName||_resolveActTitleFromCache(actKey)||actKey;
-        var title=raw;
+        var raw=d._activityName||_getActName(actKey)||_resolveActTitleFromCache(actKey)||actKey;
+        var parts=raw.split('\n').filter(Boolean);
+        var locTitle, locSub;
+        if(parts.length>1){
+          locTitle=parts[0];
+          locSub=parts.slice(1).join(' · ');
+        } else if(raw.includes(' — ')){
+          var old=raw.split(' — ');
+          locTitle=old[1]||old[0];
+          locSub=old.filter(function(_,i){return i!==1;}).join(' · ');
+        } else {
+          locTitle=raw;
+          locSub='';
+        }
         lh+='<div style="padding:8px 10px;margin-bottom:6px;background:#0d0e12;border-radius:6px;overflow:hidden">'
-          +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(title)+'</div>'
+          +'<div style="font-size:13px;font-weight:600;color:#eaeaea;word-break:break-all">'+escHtml(locTitle)+'</div>'
+          +(locSub?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(locSub)+'</div>':'')
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
           +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
           +' · <span>Ritmo: '+(d.sesPace?d.sesPace:'—')+'</span></div>'
@@ -479,8 +492,7 @@ function _refreshAdjViewer(){
       +'</div>';
     adjFiles.forEach(function(item){
       var d=item.data||{};
-      var rName=_resolveActTitleFromCache(item.id);
-      var raw=d._activityName||rName||'';
+      var raw=d._activityName||_getActName(item.id)||_resolveActTitleFromCache(item.id)||item.id;
       var parts=raw.split('\n').filter(Boolean);
       var title, subtitle;
       if(parts.length>1){
@@ -491,8 +503,8 @@ function _refreshAdjViewer(){
         title=old[1]||old[0];
         subtitle=old.filter(function(_,i){return i!==1;}).join(' · ');
       } else {
-        title=raw||item.id;
-        subtitle=raw?item.id:'';
+        title=raw;
+        subtitle='';
       }
       var fecha=item.modified?new Date(item.modified*1000).toLocaleString():'';
       var sizeStr=item.size?_fmtBytes(item.size):'';
