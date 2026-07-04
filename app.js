@@ -202,7 +202,12 @@ function _loadCellState(actId){
   if(!act){ console.log('[CELL-LOAD] actId='+actId+' SKIP: no act element'); return false; }
   var saved;
   try{ saved=JSON.parse(localStorage.getItem(_cellKey(actId))); }catch(e){ console.log('[CELL-LOAD] actId='+actId+' SKIP: parse error', e.message); return false; }
-  if(!saved){ console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId)); return false; }
+  if(!saved){
+    var _all_keys=[], _prefix='garmin-cell-';
+    for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if(k&&k.indexOf(_prefix)===0) _all_keys.push(k); }
+    console.log('[CELL-LOAD] actId='+actId+' SKIP: no saved data for key='+_cellKey(actId)+' | existing cell keys:', _all_keys.length?JSON.stringify(_all_keys):'(none)');
+    return false;
+  }
   var changed=0;
   Object.keys(saved).forEach(function(id){
     var tr=document.getElementById(id);
