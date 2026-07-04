@@ -438,11 +438,11 @@ function _refreshAdjViewer(){
           +(locSub?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(locSub)+'</div>':'')
           +'<div style="font-size:11px;color:#666;margin-top:3px">'
           +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-          +' · <span>Ritmo: '+_fmtPace(d.sesPace)+'</span></div>'
+          +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
           +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
           +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
           +(d.serDist&&d.serPace?' · ':'')
-          +(d.serPace?'<span>Ritmo activo: '+_fmtPace(d.serPace)+'</span>':'')
+          +(d.serPace?'<span>Ritmo activo: '+_secsToPaceStr(d.serPace)+'</span>':'')
           +(d.serDist||d.serPace?'</div>':'')
           +'</div></div>'
         +'</div>';
@@ -526,11 +526,11 @@ function _refreshAdjViewer(){
         +(subtitle?'<div style="font-size:10px;color:#505870;margin-top:1px;word-break:break-all">'+escHtml(subtitle)+'</div>':'')
         +'<div style="font-size:11px;color:#666;margin-top:3px">'
         +'<div><span>Dist sesión: '+(d.sesDist?d.sesDist.toFixed(2)+' km':'—')+'</span>'
-        +' · <span>Ritmo: '+_fmtPace(d.sesPace)+'</span></div>'
+        +' · <span>Ritmo: '+_secsToPaceStr(d.sesPace)+'</span></div>'
         +(d.serDist||d.serPace?'<div style="margin-top:2px">':'')
         +(d.serDist?'<span>Dist activa: '+d.serDist.toFixed(2)+' km</span>':'')
         +(d.serDist&&d.serPace?' · ':'')
-        +(d.serPace?'<span>Ritmo activo: '+_fmtPace(d.serPace)+'</span>':'')
+        +(d.serPace?'<span>Ritmo activo: '+_secsToPaceStr(d.serPace)+'</span>':'')
         +(d.serDist||d.serPace?'</div>':'')
         +'</div>'
         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
@@ -2496,40 +2496,6 @@ function _applyAdjustUI(actId){
      _setChip('serDist',_nA.toFixed(2));
      if(origDurSer>0){_setChip('serSpd',(_nA*1000/origDurSer*3.6).toFixed(2));_setChip('serPace',_secsToPaceStr(origDurSer/_nA));}
    }
-  // Add/remove "Modificada" badge
-  var mc = act.querySelector('.adj-mod-chip');
-  var hasAdj = adj.sesDist > 0 || adj.serDist > 0 || adj.sesPace > 0 || adj.serPace > 0;
-  if (hasAdj) {
-    if (!mc) {
-      var lbl = act.querySelector('.lbl');
-      if (lbl) {
-        mc = document.createElement('span');
-        mc.className = 'adj-mod-chip';
-        mc.textContent = 'Modificada';
-        mc.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap;flex-shrink:0';
-        // Wrap lbl + badge in a flex row so the badge stays inline with the name
-        var wr = lbl.parentNode;
-        if (wr && wr.classList.contains('lbl-row')) {
-          wr.appendChild(mc);
-        } else {
-          wr = document.createElement('div');
-          wr.className = 'lbl-row';
-          wr.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:6px';
-          lbl.parentNode.insertBefore(wr, lbl);
-          wr.appendChild(lbl);
-          wr.appendChild(mc);
-        }
-      }
-    }
-  } else if (mc) {
-    var wr = mc.parentNode;
-    mc.remove();
-    if (wr && wr.classList.contains('lbl-row') && wr.children.length === 1 && wr.children[0].classList.contains('lbl')) {
-      var lbl2 = wr.querySelector('.lbl');
-      wr.parentNode.insertBefore(lbl2, wr);
-      wr.remove();
-    }
-  }
 
   _applyAdjustToSummary(actId, adj, origDurSes, origDurSer);
 }
@@ -7760,11 +7726,13 @@ function _renderConnectorActs(acts) {
     var type = escHtml(_CONNECTOR_TIPOS[a.activityType] || (a.activityType || ''));
     var meta = [date, type, dist, dur].filter(Boolean).join(' · ');
     var hasAdj = adjIds.indexOf(String(a.activityId)) >= 0;
-    var modChip = hasAdj ? '<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;margin-left:8px;vertical-align:middle;border:1px solid #5a4a1a;white-space:nowrap">Modificada</span>' : '';
     return '<div onclick="loadActivityFromConnector(\'' + a.activityId + '\')"'
       + ' style="padding:12px 18px;border-bottom:1px solid #111318;cursor:pointer;transition:background .12s"'
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">' + name + modChip + '</div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
+      + '<span>'+name+'</span>'
+      + (hasAdj?'<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:#3a3010;color:#f2c94c;border:1px solid #5a4a1a;flex-shrink:0;margin-left:8px">Modificada</span>':'')
+      + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>';
   }).join('');
