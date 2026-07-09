@@ -2194,9 +2194,13 @@ function _toggleGroup(groupId){
   var next=header.nextElementSibling;
   var collapsed=arrow&&arrow.classList.contains('collapsed');
   _DB('GROUP','_toggleGroup id='+groupId+' collapsed='+collapsed+' -> '+(collapsed?'expand':'collapse'));
-  while(next&&(next.classList.contains('group-lap'))){
+  var childCount=parseInt(header.getAttribute('data-child-count'))||0;
+  var count=0;
+  while(next&&(next.classList.contains('group-lap'))&&(childCount<=0||count<childCount)){
+    if(childCount<=0&&(next.classList.contains('group-header')||next.classList.contains('phase-header')||next.classList.contains('custom-group-header')))break;
     next.style.display=collapsed?'':'none';
     next=next.nextElementSibling;
+    count++;
   }
   if(arrow)arrow.classList.toggle('collapsed');
 }
@@ -3595,7 +3599,7 @@ var allR=[];
         +'<td><div class="metric"><div class="main" '+descStyle+'>'+fcmaxVal+'</div>'+dFCxM+'</div></td>'
         +zonaCellHtml(s.zonas_lap,true)+'</tr>';
     } else {
-      var _isFastest=!isDesc&&maxKmhVal>0&&s.speed>=maxKmhVal-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);
+      var _isFastest=!isDesc&&(!rowClass||rowClass.indexOf('warmup-row')<0&&rowClass.indexOf('cooldown-row')<0)&&maxKmhVal>0&&s.speed>=maxKmhVal-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);
       return '<tr id="'+rowId+'"'+_dAttrs+' class="'+(rowClass||'')+(isDesc?' desc-row':'')+(_isFastest?' fastest-lap':'')+'">'
         +(esContinua?(isIndoorCycling?'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+_vuelta+'</div></div></td>':'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml((hasRef?dDist(s.dist_km,ref.dist_km,false):''),(hasRef?dElev(s.desnivel,ref.desnivel,false):''),s.desnivel,hasRef)+'</div></td>'):'<td>'+labelHtml+'</td>')
         +(useTiming
@@ -3684,7 +3688,8 @@ var allR=[];
     else if(s._subLaps){_isFastestSum=maxSpdSum>0&&s.speed>=maxSpdSum-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);}
     else{_isFastestSum=maxKmhVal>0&&s.speed>=maxKmhVal-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);}
     var _isSummaryFastest=!_isDescanso(s)&&!(s._subLaps&&s._subLaps.length&&s._subLaps.every(function(l){return _isDescanso(l)||_residualSet.has(l);}))&&maxSpdSum>0&&s.speed>=maxSpdSum-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);
-    return '<tr'+attrs+' class="'+rowClass+' step-summary'+(_isFastestSum?' fastest-lap':'')+'">'
+    var _phaseHeader=rowClass==='phase-header';
+    return '<tr'+attrs+' class="'+rowClass+' step-summary'+(_isFastestSum&&!_phaseHeader?' fastest-lap':'')+'">'
       +'<td>'+firstCell+'</td>'
       +'<td class="col-lap" style="font-weight:600">'+(s.vuelta||'')+'</td>'
       +'<td class="col-time"><div class="metric"><div class="main">'+(dur?((isMoto||(isCycling&&!isIndoorCycling))&&_isFastestSum?'<span class="ritmo-pill">'+secsToStepStr(dur,isMoto?3:1)+'</span>':secsToStepStr(dur,isMoto?3:1)):'—')+'</div>'+dDurH+'</div></td>'
@@ -8851,6 +8856,7 @@ setTimeout(function() {
       if(tr.classList.contains('avg-row')||tr.classList.contains('avg-act')) return;
       if(tr.classList.contains('row-hidden')) return;
       if(tr.classList.contains('group-header')||tr.classList.contains('phase-header')||tr.classList.contains('custom-group-header')) return;
+      if(tr.classList.contains('warmup-row')||tr.classList.contains('cooldown-row')) return;
       if(!tr.hasAttribute('data-dur')) return;
       dataRows.push(tr);
     });
@@ -8918,7 +8924,7 @@ setTimeout(function() {
       var isMaxPow   = !isRes && pow>0 && maxes.pow>0 && Math.round(pow)===Math.round(maxes.pow);
       var isMaxFcm   = !isRes && fcm>0 && maxes.fcm>0 && Math.abs(fcm-maxes.fcm)<0.5;
       var isMaxRitmo = isMaxSpeed;
-      tr.classList.toggle('fastest-lap', isMaxSpeed);
+      if(!tr.classList.contains('phase-header'))tr.classList.toggle('fastest-lap', isMaxSpeed);
       var spdCol = tr.querySelector('.col-speed');
       var spdMetric = spdCol ? spdCol.querySelector('.metric') : null;
       var spdMain = spdMetric ? spdMetric.querySelector('.main') : null;
@@ -9694,6 +9700,8 @@ setTimeout(function() {
     var _isMaxFcx   = !_short && agg.fcx>0 && maxes.fcx>0 && Math.abs(agg.fcx-maxes.fcx)<0.5;
     var _isMaxRitmo = _isMaxSpeed;
     // Sync fastest-lap row class: remove from descanso-only groups, set on the group with max speed
+    // phase-header (warmup/cooldown) never gets fastest-lap
+    if(headerTr.classList.contains('phase-header'))return;
     headerTr.classList.toggle('fastest-lap', _isMaxSpeed);
     types.forEach(function(t, i){
       var td = tds[i];
