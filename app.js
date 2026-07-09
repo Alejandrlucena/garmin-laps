@@ -3334,7 +3334,7 @@ function renderActividad(d){
   _distributeZones(warmup,zonas,fcMinAll,fcMaxAll,fcRangeAll);_fallbackZ1(warmup);
   _distributeZones(cooldown,zonas,fcMinAll,fcMaxAll,fcRangeAll);_fallbackZ1(cooldown);
 
-  var maxFCxVal=seriesArr.length?Math.max.apply(null,seriesArr.map(function(s){return s.fc_max||0;})):0;
+  var maxFCxVal=seriesArr.filter(function(s){return !_isDescanso(s);}).length?Math.max.apply(null,seriesArr.filter(function(s){return !_isDescanso(s);}).map(function(s){return s.fc_max||0;})):0;
 
 var allR=[];
   function _pushExpanded(s){if(s._subLaps)s._subLaps.forEach(function(sub){allR.push(sub);});else allR.push(s);}
@@ -3480,7 +3480,7 @@ var allR=[];
     var v=s&&s.fc_med>0?Math.round(s.fc_med):0;
     if(!v)return'';
     if(forSummary){
-      var isSummaryMax=maxFCmSumVal>0&&v===Math.round(maxFCmSumVal)&&!_residualSet.has(s);
+      var isSummaryMax=maxFCmSumVal>0&&v===Math.round(maxFCmSumVal)&&!_residualSet.has(s)&&!_isDescanso(s);
       return isSummaryMax?'<span class="fc-med-pill">'+v+'</span>':String(v);
     }
     var isLapMax=maxFCmVal>0&&v===Math.round(maxFCmVal)&&!_residualSet.has(s)&&!_isDescanso(s);
@@ -3534,7 +3534,7 @@ var allR=[];
     _cumTimeSecs+=_thisDur;
     var _ct=_cumTimeSecs;
     var _cumDisplay=secsToStepStr(_ct,isMoto?3:1);
-    var fcmaxVal=s.fc_max>0?(s.fc_max===maxFCxVal?'<span class="fc-max-pill">'+s.fc_max+'</span>':s.fc_max):'';
+    var fcmaxVal=s.fc_max>0?(s.fc_max===maxFCxVal&&!isDesc?'<span class="fc-max-pill">'+s.fc_max+'</span>':s.fc_max):'';
     var lbl=s.label||'—';
     // Show duration if NOT a simple number (continuous run = just "1", "2", etc.)
     // In intervalos mode, duration goes in its own column so skip from label
@@ -3673,7 +3673,7 @@ var allR=[];
     var dRitmoH=hasRef?dRitmo(s.speed,ref.speed):'';
     var dFCmH=hasRef?dFC(s.fc_med,ref.fc_med):'';
     var dFCxH=hasRef?dFC(s.fc_max,ref.fc_max):'';
-    var fcMaxSum=s.fc_max>0?(s.fc_max===maxFCxVal?'<span class="fc-max-pill">'+s.fc_max+'</span>':''+s.fc_max):'';
+    var fcMaxSum=s.fc_max>0?(s.fc_max===maxFCxVal&&!_isDescanso(s)?'<span class="fc-max-pill">'+s.fc_max+'</span>':''+s.fc_max):'';
     var _vmS=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'—';
     var _isVmaxSummary=!_isDescanso(s)&&maxSmaxSum>=0.3&&s.speed_max>=0.3&&Math.abs(s.speed_max-maxSmaxSum)<0.001;
     var _vmSPill=_vmS!=='—'?(_isVmaxSummary?'<span class="vel-max-pill">'+_vmS+' km/h</span>':_vmS+' km/h'):'—';
