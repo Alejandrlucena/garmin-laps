@@ -1906,7 +1906,7 @@ function debugDumpTable(){
     out.push({actividad:aid,titulo:titulo?titulo.textContent.trim():'',rows:actRows});
   });
   _DB('DUMP', '--- TABLE STRUCTURE ---');
-  // console.log(JSON.stringify(out,null,2));
+  console.log(JSON.stringify(out,null,2));
   _DB('DUMP', '--- END ---');
 }
 function _reRenderCompact() {
@@ -1937,6 +1937,7 @@ function _reRenderCompact() {
     _dumpFullState('RENDER: after phase restore');
   });
   setTimeout(debugDumpTable,100);
+  setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },200);
 }
 
 // Zone range registry — populated from "rango" field in JSON data
@@ -3309,6 +3310,7 @@ function renderActividad(d){
   var _hasSeries=seriesArr.some(function(s){return _isDescanso(s);});
   var _hasCompactedRows=seriesArr.some(function(s){return !!s._subLaps;});
   var esContinua=esCarrera||((isCycling||isMoto)&&!_hasSeries&&!_hasCompactedRows);
+  var esPlanTrabajo=seriesArr.some(function(s){return s._intensityType==='RECOVERY';});
   showLapCol=showLapCol&&!esContinua;
 
   // FC range for zone distribution weighting
@@ -3894,7 +3896,13 @@ var allR=[];
         syn.vuelta=_rangeFromRows(g.laps);
         syn._isFastestGroup=maxKmhVal>0&&g.activeLaps.some(function(l){return l.speed>=maxKmhVal-0.001;});
         var zonaSyn=_synthLap(g.laps,'');
-        if(g.laps.length<=1){
+        if(esPlanTrabajo){
+          g.laps.forEach(function(s, idx){
+            var isDesc=_isDescanso(s);
+            rows+=_dataRow(s, lastActiveLap, isDesc, false, idx===0?'group-boundary':'', true);
+            if(!isDesc) lastActiveLap = s;
+          });
+        } else if(g.laps.length<=1){
           g.laps.forEach(function(s){
             rows+=_dataRow(s,lastActiveLap,false,false,'group-boundary',true);
             if(!_isDescanso(s))lastActiveLap=s;
@@ -4876,8 +4884,8 @@ function fromRawGarmin(raw){
     };
     if(intensity==='REST'){
       restCount++;s.label='Descanso';s._intensityType='REST';series.push(s);
-    } else if(intensity==='RECOVERY'){
-      restCount++;s.label='Descanso';s._intensityType='REST';series.push(s);
+     } else if(intensity==='RECOVERY'){
+       restCount++;s.label='Recuperación';s._intensityType='RECOVERY';series.push(s);
     } else {
       activeCount++;s.label='Carrera';series.push(s);
     }
@@ -5067,6 +5075,7 @@ function render(){
   _updateCompactResetBtn();
   _updateClearBtnState();
   setTimeout(debugDumpTable,200);
+  setTimeout(function(){ if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML(); },350);
   // En móvil, scroll al output
   if(window.innerWidth<900){
     setTimeout(()=>document.getElementById('output').scrollIntoView({behavior:'smooth',block:'start'}),100);
@@ -7901,25 +7910,26 @@ function _renderConnectorActs(acts) {
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="flex:1;padding:12px 18px;min-width:0">'
       + '<div id="conn-row-'+a.activityId+'" style="display:flex;align-items:center;font-size:13px;line-height:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-      + '<span id="conn-name-'+a.activityId+'">'+name+'</span>'
+      + '<span id="conn-name-'+a.activityId+'" style="flex:0 1 auto;min-width:0">'+name+'</span>'
+      + (hasAdj?'<span id="conn-chip-'+a.activityId+'" style="flex:none;display:inline-flex;align-items:center;height:13px;font-size:9px;margin-left:8px;padding:0 6px;border-radius:3px;background:#3a3010;color:#f2c94c">Modificada</span>':'')
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>'
-      + (hasAdj?'<div style="width:20%;flex:none;background:#3a3010;color:#f2c94c;display:flex;align-items:center;justify-content:center;font-size:9px;min-width:0">Modificada</div>':'')
       + '</div>';
   }).join('');
-  //setTimeout(function(){
-  //  list.querySelectorAll('[id^="conn-name-"]').forEach(function(nameEl){
-  //    var row=nameEl.closest('[id^="conn-row-"]');
-  //    var item=row&&row.parentElement&&row.parentElement.parentElement;
-  //    var chip=item&&item.lastElementChild;
-  //    if(!chip||chip.tagName!=='DIV'||!chip.textContent.includes('Modificada')) return;
-  //    var ib=item.getBoundingClientRect(), cb=chip.getBoundingClientRect(), rb=row.getBoundingClientRect();
-  //    console.log('[ITEM] itemH='+ib.height.toFixed(1)+' chipH='+cb.height.toFixed(1)+' chipW='+cb.width.toFixed(1)
-  //      +' chipT='+cb.top.toFixed(1)+' chipB='+cb.bottom.toFixed(1)
-  //      +' chipOffCenter='+((cb.top+cb.height/2)-(ib.top+ib.height/2)).toFixed(1));
-  //  });
-  //}, 100);
+  setTimeout(function(){
+    var _deb=document.getElementById('connector-debug');
+    if(!_deb) return;
+    var _lines=[];
+    list.querySelectorAll('[id^="conn-chip-"]').forEach(function(chip){
+      var row=chip.parentElement, name=row.querySelector('[id^="conn-name-"]');
+      if(!name) return;
+      var rb=row.getBoundingClientRect(), nb=name.getBoundingClientRect(), cb=chip.getBoundingClientRect();
+      var d=((nb.top+nb.height/2)-(cb.top+cb.height/2)).toFixed(1);
+      _lines.push('rowH='+rb.height.toFixed(0)+' nameH='+nb.height.toFixed(0)+' chipH='+cb.height.toFixed(0)+' d='+d);
+    });
+    if(_lines.length) _deb.textContent=_lines.join(' | ');
+  }, 100);
 }
 
 var _connectorBroadActs = null;
@@ -9059,10 +9069,10 @@ setTimeout(function() {
   // Global debug dump
   function _dumpRenderedHTML(){
     var acts=document.querySelectorAll('.actividad');
-    // console.log('====== RENDERED TABLE HTML ======');
+    console.log('====== RENDERED TABLE HTML ======');
     acts.forEach(function(act){
       var actId=act.id.replace('act-','');
-      // console.log('--- ACTIVITY: '+actId+' ('+(act.getAttribute('data-title')||'')+') ---');
+      console.log('--- ACTIVITY: '+actId+' ('+(act.getAttribute('data-title')||'')+') ---');
       var tbody=act.querySelector('tbody');
       if(!tbody) return;
       Array.from(tbody.children).forEach(function(r,i){
@@ -9071,32 +9081,32 @@ setTimeout(function() {
         var dur=parseFloat(r.getAttribute('data-dur'))||0;
         var lbl=r.getAttribute('data-lbl')||'';
         var zones=r.getAttribute('data-zones')||'[]';
-        // console.log('['+i+'] '+id+' ('+cls+') dur='+dur+' lbl="'+lbl+'"');
+        console.log('['+i+'] '+id+' ('+cls+') dur='+dur+' lbl="'+lbl+'"');
         // Print each cell's text content (truncated)
         var cells=r.querySelectorAll('td');
         Array.from(cells).forEach(function(td,ci){
           var cls2=td.className||'';
           var txt=(td.textContent||'').trim().replace(/\s+/g,' ').substring(0,80);
-          // console.log('  td['+ci+'] cls="'+cls2+'" text="'+txt+'"');
+          console.log('  td['+ci+'] cls="'+cls2+'" text="'+txt+'"');
         });
         // Show parsed zones
-        // try{
+        try{
           var zr=JSON.parse(zones.replace(/&quot;/g,'"'));
           if(Array.isArray(zr)&&zr.length>0){
-            // console.log('  ZONES: '+zr.map(function(z){return z.nombre+'='+z.secs+'s';}).join(', '));
+            console.log('  ZONES: '+zr.map(function(z){return z.nombre+'='+z.secs+'s';}).join(', '));
           } else {
-            // console.log('  ZONES: (empty)');
+            console.log('  ZONES: (empty)');
           }
-        // }catch(e){ console.log('  ZONES: (parse error)'); }
+        }catch(e){ console.log('  ZONES: (parse error)'); }
         // Print key data attributes
-        // console.log('  ATTRS: spd='+r.getAttribute('data-speed')+' dist='+r.getAttribute('data-dist')+' fcm='+r.getAttribute('data-fcm')+' fcx='+r.getAttribute('data-fcx')+' cad='+r.getAttribute('data-cad')+' pow='+r.getAttribute('data-pow'));
-        // console.log('---');
+        console.log('  ATTRS: spd='+r.getAttribute('data-speed')+' dist='+r.getAttribute('data-dist')+' fcm='+r.getAttribute('data-fcm')+' fcx='+r.getAttribute('data-fcx')+' cad='+r.getAttribute('data-cad')+' pow='+r.getAttribute('data-pow'));
+        console.log('---');
       });
     });
-    // console.log('====== END RENDERED HTML ======');
-    // console.log('STACK: undo='+W._editStack.length+' redo='+W._editRedo.length);
-    // console.log('UNDO: '+W._editStack.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
-    // console.log('REDO: '+W._editRedo.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
+    console.log('====== END RENDERED HTML ======');
+    console.log('STACK: undo='+W._editStack.length+' redo='+W._editRedo.length);
+    console.log('UNDO: '+W._editStack.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
+    console.log('REDO: '+W._editRedo.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
   }
   W._dumpRenderedHTML=_dumpRenderedHTML;
   function _dumpAllTables(){
