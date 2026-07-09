@@ -3402,7 +3402,7 @@ var allR=[];
   var _vmArr=allR.filter(function(r){return(r.speed_max||0)>=0.3&&!_residualSet.has(r);});
   var maxVelMaxVal=(isMoto||isCycling)&&_vmArr.length?Math.max.apply(null,_vmArr.map(function(r){return r.speed_max;})):0;
   // km/h máx sesión (resto de deportes): vuelta más rápida, excluye residuales
-  var _kmhArr=allR.filter(function(r){return r.speed>0.5&&!_residualSet.has(r)&&(r.dist_km||0)>=_pillMinDist;});
+  var _kmhArr=allR.filter(function(r){return r.speed>0.5&&!_residualSet.has(r)&&(r.dist_km||0)>=_pillMinDist&&!_isDescanso(r);});
   var maxKmhVal=_kmhArr.length?Math.max.apply(null,_kmhArr.map(function(r){return r.speed;})):0;
   // Media trabajo efectivo: solo vueltas activas, sin descansos ni residuales
   // En compact-km expandimos _subLaps para no incluir calentamiento/enfriamiento
@@ -3595,7 +3595,7 @@ var allR=[];
         +'<td><div class="metric"><div class="main" '+descStyle+'>'+fcmaxVal+'</div>'+dFCxM+'</div></td>'
         +zonaCellHtml(s.zonas_lap,true)+'</tr>';
     } else {
-      var _isFastest=maxKmhVal>0&&s.speed>=maxKmhVal-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);
+      var _isFastest=!isDesc&&maxKmhVal>0&&s.speed>=maxKmhVal-0.001&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);
       return '<tr id="'+rowId+'"'+_dAttrs+' class="'+(rowClass||'')+(isDesc?' desc-row':'')+(_isFastest?' fastest-lap':'')+'">'
         +(esContinua?(isIndoorCycling?'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+_vuelta+'</div></div></td>':'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml((hasRef?dDist(s.dist_km,ref.dist_km,false):''),(hasRef?dElev(s.desnivel,ref.desnivel,false):''),s.desnivel,hasRef)+'</div></td>'):'<td>'+labelHtml+'</td>')
         +(useTiming
@@ -3604,11 +3604,11 @@ var allR=[];
             +'<td class="col-cum-time">'+'<div class="metric"><div class="main" style="font-size:10px;color:#5a6070">'+_cumDisplay+'</div></div></td>'
           :'')
         +(esContinua||isIndoorCycling?'':'<td class="col-dist" style="padding-left:14px;padding-right:14px"><div class="metric"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml((hasRef?dDist(s.dist_km,ref.dist_km,false):''),(hasRef?dElev(s.desnivel,ref.desnivel,false):''),s.desnivel,hasRef)+'</div></td>')
-        +(isIndoorCycling?'':(function(){var _spd=toKmh(s.speed);var _kpill=maxKmhVal>0&&_spd===toKmh(maxKmhVal)&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);var _pc='vel-med-pill';var _kdisp=_kpill?'<span class="'+_pc+'">'+_spd+' km/h</span>':_spd;return'<td class="col-speed"><div class="metric"><div class="main">'+_kdisp+'</div>'+(hasRef?dKmh(s.speed,ref.speed):'')+'</div></td>';}()))
-        +((isMoto||(isCycling&&!isIndoorCycling))?(function(){var _vm=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'—';var _pill=maxVelMaxVal>=0.3&&s.speed_max>=0.3&&_vm===(maxVelMaxVal*3.6).toFixed(2)&&!_residualSet.has(s);return'<td><div class="metric"><div class="main">'+(_pill?'<span class="vel-max-pill">'+_vm+' km/h</span>':_vm)+'</div>'+(hasRef?dSpeedMax(s.speed_max,ref.speed_max):'')+'</div></td>';})():_cadTd(s,hasRef?ref.cadencia:0,false,'—',null,false))
+        +(isIndoorCycling?'':(function(){var _spd=toKmh(s.speed);var _kpill=!isDesc&&maxKmhVal>0&&_spd===toKmh(maxKmhVal)&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);var _pc='vel-med-pill';var _kdisp=_kpill?'<span class="'+_pc+'">'+_spd+' km/h</span>':_spd;return'<td class="col-speed"><div class="metric"><div class="main">'+_kdisp+'</div>'+(hasRef?dKmh(s.speed,ref.speed):'')+'</div></td>';}()))
+        +((isMoto||(isCycling&&!isIndoorCycling))?(function(){var _vm=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'—';var _pill=!isDesc&&maxVelMaxVal>=0.3&&s.speed_max>=0.3&&_vm===(maxVelMaxVal*3.6).toFixed(2)&&!_residualSet.has(s);return'<td><div class="metric"><div class="main">'+(_pill?'<span class="vel-max-pill">'+_vm+' km/h</span>':_vm)+'</div>'+(hasRef?dSpeedMax(s.speed_max,ref.speed_max):'')+'</div></td>';})():_cadTd(s,hasRef?ref.cadencia:0,false,'—',null,false))
         +(isMoto?'':(isCycling
           ?_powerTd(s,hasRef?ref:null,'—',null,false)
-          :(esContinua&&esCarrera?'':(function(){var _ritmo=toRitmo(s.speed);var _rp=maxKmhVal>0&&_ritmo===toRitmo(maxKmhVal)&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);return'<td class="col-pace"><div class="metric"><div class="main">'+(_rp&&_ritmo?'<span class="ritmo-pill">'+_ritmo+'</span>':_ritmo)+'</div>'+(hasRef?dRitmo(s.speed,ref.speed):'')+'</div></td>';}()))))
+          :(esContinua&&esCarrera?'':(function(){var _ritmo=toRitmo(s.speed);var _rp=!isDesc&&maxKmhVal>0&&_ritmo===toRitmo(maxKmhVal)&&(s.dist_km||0)>=_pillMinDist&&!_residualSet.has(s);return'<td class="col-pace"><div class="metric"><div class="main">'+(_rp&&_ritmo?'<span class="ritmo-pill">'+_ritmo+'</span>':_ritmo)+'</div>'+(hasRef?dRitmo(s.speed,ref.speed):'')+'</div></td>';}()))))
         +'<td><div class="metric"><div class="main">'+_fcMedHtml(s,false)+'</div>'+(hasRef?dFC(s.fc_med,ref.fc_med):'')+'</div></td>'
         +'<td><div class="metric"><div class="main">'+fcmaxVal+'</div>'+(hasRef?dFC(s.fc_max,ref.fc_max):'')+'</div></td>'
         +zonaCellHtml(s.zonas_lap,true)+'</tr>';
@@ -3675,7 +3675,7 @@ var allR=[];
     var dFCxH=hasRef?dFC(s.fc_max,ref.fc_max):'';
     var fcMaxSum=s.fc_max>0?(s.fc_max===maxFCxVal?'<span class="fc-max-pill">'+s.fc_max+'</span>':''+s.fc_max):'';
     var _vmS=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'—';
-    var _isVmaxSummary=maxSmaxSum>=0.3&&s.speed_max>=0.3&&Math.abs(s.speed_max-maxSmaxSum)<0.001;
+    var _isVmaxSummary=!_isDescanso(s)&&maxSmaxSum>=0.3&&s.speed_max>=0.3&&Math.abs(s.speed_max-maxSmaxSum)<0.001;
     var _vmSPill=_vmS!=='—'?(_isVmaxSummary?'<span class="vel-max-pill">'+_vmS+' km/h</span>':_vmS+' km/h'):'—';
     var dDurH=hasRef?dTimeSecs(dur,ref.dur_raw_secs||ref.dur_secs||0,isMoto?3:1):'';
     var _isFastestSum;
