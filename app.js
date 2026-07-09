@@ -7910,26 +7910,25 @@ function _renderConnectorActs(acts) {
       + ' onmouseover="this.style.background=\'#141620\'" onmouseout="this.style.background=\'transparent\'">'
       + '<div style="flex:1;padding:12px 18px;min-width:0">'
       + '<div id="conn-row-'+a.activityId+'" style="display:flex;align-items:center;font-size:13px;line-height:13px;font-weight:600;color:#eaeaea;margin-bottom:3px">'
-      + '<span id="conn-name-'+a.activityId+'" style="flex:0 1 auto;min-width:0">'+name+'</span>'
-      + (hasAdj?'<span id="conn-chip-'+a.activityId+'" style="flex:none;display:inline-flex;align-items:center;height:13px;font-size:9px;margin-left:8px;padding:0 6px;border-radius:3px;background:#3a3010;color:#f2c94c">Modificada</span>':'')
+      + '<span id="conn-name-'+a.activityId+'">'+name+'</span>'
       + '</div>'
       + '<div style="font-size:11px;color:#505870">' + meta + '</div>'
       + '</div>'
+      + (hasAdj?'<div style="width:20%;flex:none;background:#3a3010;color:#f2c94c;display:flex;align-items:center;justify-content:center;font-size:9px;min-width:0">Modificada</div>':'')
       + '</div>';
   }).join('');
-  setTimeout(function(){
-    var _deb=document.getElementById('connector-debug');
-    if(!_deb) return;
-    var _lines=[];
-    list.querySelectorAll('[id^="conn-chip-"]').forEach(function(chip){
-      var row=chip.parentElement, name=row.querySelector('[id^="conn-name-"]');
-      if(!name) return;
-      var rb=row.getBoundingClientRect(), nb=name.getBoundingClientRect(), cb=chip.getBoundingClientRect();
-      var d=((nb.top+nb.height/2)-(cb.top+cb.height/2)).toFixed(1);
-      _lines.push('rowH='+rb.height.toFixed(0)+' nameH='+nb.height.toFixed(0)+' chipH='+cb.height.toFixed(0)+' d='+d);
-    });
-    if(_lines.length) _deb.textContent=_lines.join(' | ');
-  }, 100);
+  //setTimeout(function(){
+  //  list.querySelectorAll('[id^="conn-name-"]').forEach(function(nameEl){
+  //    var row=nameEl.closest('[id^="conn-row-"]');
+  //    var item=row&&row.parentElement&&row.parentElement.parentElement;
+  //    var chip=item&&item.lastElementChild;
+  //    if(!chip||chip.tagName!=='DIV'||!chip.textContent.includes('Modificada')) return;
+  //    var ib=item.getBoundingClientRect(), cb=chip.getBoundingClientRect(), rb=row.getBoundingClientRect();
+  //    console.log('[ITEM] itemH='+ib.height.toFixed(1)+' chipH='+cb.height.toFixed(1)+' chipW='+cb.width.toFixed(1)
+  //      +' chipT='+cb.top.toFixed(1)+' chipB='+cb.bottom.toFixed(1)
+  //      +' chipOffCenter='+((cb.top+cb.height/2)-(ib.top+ib.height/2)).toFixed(1));
+  //  });
+  //}, 100);
 }
 
 var _connectorBroadActs = null;
