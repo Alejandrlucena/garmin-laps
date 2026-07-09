@@ -3731,8 +3731,7 @@ var allR=[];
           // Stop if this is a new active lap and we've already had a descanso
           var hadDescanso=grp.laps.some(function(l){return _isDescanso(l);});
           if(!_isDescanso(next)){
-            if(hadDescanso)break;
-            if(esPlanTrabajo)break; // keep each active lap separate in plan de trabajo
+            if(hadDescanso)break; // new interval
             // Break if consecutive active laps belong to different workout steps.
             // Residual laps (tiny auto-lap artefacts) stick unless wktStepIndex differs.
             if(!_residualSet.has(next)){
@@ -3897,11 +3896,16 @@ var allR=[];
         syn.vuelta=_rangeFromRows(g.laps);
         syn._isFastestGroup=maxKmhVal>0&&g.activeLaps.some(function(l){return l.speed>=maxKmhVal-0.001;});
         var zonaSyn=_synthLap(g.laps,'');
-        if(g.activeLaps.length<=1){
-          g.laps.forEach(function(s){
+        if(esPlanTrabajo){
+          g.laps.forEach(function(s, idx){
             var isDesc=_isDescanso(s);
-            rows+=_dataRow(s,lastActiveLap,isDesc,false,'group-boundary',true);
-            if(!isDesc)lastActiveLap=s;
+            rows+=_dataRow(s, lastActiveLap, isDesc, false, idx===0?'group-boundary':'', true);
+            if(!isDesc) lastActiveLap = s;
+          });
+        } else if(g.laps.length<=1){
+          g.laps.forEach(function(s){
+            rows+=_dataRow(s,lastActiveLap,false,false,'group-boundary',true);
+            if(!_isDescanso(s))lastActiveLap=s;
           });
         } else {
           rows+=_summaryRow(syn,'group-header','Carrera',_cumTimeSecs+(syn.dur_raw_secs||syn.dur_secs||0),zonaSyn.zonas_lap,lastGroupSyn);
