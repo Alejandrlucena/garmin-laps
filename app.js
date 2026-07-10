@@ -10122,8 +10122,8 @@ setTimeout(function() {
         var aboveLast = _ownGroupLastChild(groupAbove, tr);
         _opMove(actId, rowId, aboveLast.id, groupAbove.id);
       } else {
-        // No hay grupo arriba → mover al inicio del grupo actual (después del header)
-        _opMove(actId, rowId, prev.id, null);
+        // No hay grupo arriba → extraer como standalone encima del grupo
+        _opMove(actId, rowId, beforeHdr ? beforeHdr.id : null, null);
       }
       _autoUngroupIfNeeded(actId, oldG);
       return;
@@ -10176,8 +10176,7 @@ setTimeout(function() {
       var nxtLast = _ownGroupLastChild(aft, tr);
       _opMove(actId, rowId, nxtLast.id, aft.id);
     } else {
-      var grpLastEx = _ownGroupLastChild(ownHdr, tr);
-      _opMove(actId, rowId, grpLastEx.id, null);
+      _opMove(actId, rowId, realLast.id, null);
     }
     _autoUngroupIfNeeded(actId, myG);
   };
