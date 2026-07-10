@@ -10142,6 +10142,14 @@ setTimeout(function() {
     } else if(myG && !prG){
       // tr es custom, prev es auto-group-lap → mover antes de prev dentro del auto-group
       _opMove(actId, rowId, prev.previousElementSibling && !prev.previousElementSibling.classList.contains('row-hidden') && !prev.previousElementSibling.classList.contains('group-header') && !prev.previousElementSibling.classList.contains('phase-header') ? prev.previousElementSibling.id : prev.id, null);
+    } else if(myG && prG && myG !== prG){
+      // tr y prev están en grupos custom distintos → meter tr al final del grupo de prev
+      var prHdr = document.getElementById(prG);
+      if(prHdr && prHdr.classList.contains('custom-group-header')){
+        var prLast = _ownGroupLastChild(prHdr, tr);
+        _opMove(actId, rowId, prLast.id, prHdr.id);
+        _autoUngroupIfNeeded(actId, myG);
+      }
     }
   };
 
