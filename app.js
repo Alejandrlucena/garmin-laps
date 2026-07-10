@@ -6114,7 +6114,7 @@ function _buildShareCardHTML(opts,data){
     +routeHtml
     +'<div class="sc-body">'
     +'<div class="sc-header" style="text-align:'+_alignHead+'">'
-    +'<div class="sc-title">'+(function(){var _p=[];if(opts.tipo!==false&&tipoAbr)_p.push(tipoAbr);if(opts.nombre&&nombre)_p.push(nombre);return _p.join(' · ');})()+'</div>'
+    +'<div class="sc-title">'+(function(){var _p=[];if(opts.tipo!==false&&tipoAbr)_p.push(tipoAbr);if(opts.nombre&&nombre)_p.push(nombre.replace(/\n/g,'<br>'));return _p.join(' · ');})()+'</div>'
     +'</div>'
     +(statsCells?'<div class="sc-stats" style="justify-content:'+_jc(opts.align_data||'left')+';align-items:'+_jc(opts.align_data||'left')+';'+(statsLayout==='flex'?'display:flex;flex-wrap:wrap;justify-content:center;':'')+'">'+statsCells+'</div>':'')
     +zoneHtml
@@ -6222,7 +6222,7 @@ function shareStrava(){
 +_shareCb('nombre','Tipo + nombre',opts.nombre)
 +_shareCb('tipo','Mostrar tipo',opts.tipo)
 +'</div>'
-+'<input type="text" id="sh-custom-name" placeholder="Nombre personalizado…" value="'+(opts.customName||'')+'" oninput="_updateSharePreview()" style="width:100%;margin-top:8px;padding:8px 10px;border-radius:8px;border:1px solid #2a2d3a;background:#0d0e14;color:#eaeaea;font-size:12px;outline:none;box-sizing:border-box">'
++'<textarea id="sh-custom-name" placeholder="Nombre personalizado…" rows="2" oninput="_updateSharePreview()" style="width:100%;margin-top:8px;padding:8px 10px;border-radius:8px;border:1px solid #2a2d3a;background:#0d0e14;color:#eaeaea;font-size:12px;outline:none;box-sizing:border-box;resize:vertical;font-family:inherit;line-height:1.5">'+(opts.customName||'')+'</textarea>'
 +'</div>'
 +'<div class="share-section">'
 +'<div class="share-section-label">Barras de zonas</div>'
