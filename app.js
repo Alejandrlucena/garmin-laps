@@ -1129,11 +1129,16 @@ function _addMergeToolbar(act){
   bar.style.display='none';
   bar.innerHTML='<span class="merge-count">0 seleccionadas</span>'
     +'<button class="merge-btn" title="Fusionar vueltas seleccionadas">⧉ Fusionar</button>'
+    +'<button class="group-create-btn" title="Agrupar vueltas seleccionadas">⊞ Grupo</button>'
     +'<button class="merge-cancel-btn" title="Cancelar selección">✕</button>';
   act.insertBefore(bar, act.firstChild);
   bar.querySelector('.merge-btn').onclick=function(e){
     e.preventDefault();e.stopPropagation();
     _doMerge(act);
+  };
+  bar.querySelector('.group-create-btn').onclick=function(e){
+    e.preventDefault();e.stopPropagation();
+    _doCreateGroup(act);
   };
   bar.querySelector('.merge-cancel-btn').onclick=function(e){
     e.preventDefault();e.stopPropagation();
@@ -1453,6 +1458,19 @@ function _doMerge(act){
   setTimeout(function(){
     if(typeof window._dumpRenderedHTML==='function') window._dumpRenderedHTML();
   },50);
+}
+function _doCreateGroup(act){
+  var checked=act.querySelectorAll('.lap-checkbox:checked');
+  if(checked.length<2) return;
+  var rows=[];
+  checked.forEach(function(cb){
+    var tr=cb.closest('tr');
+    if(tr&&tr.parentNode) rows.push(tr);
+  });
+  if(rows.length<2) return;
+  var actId=act.id.replace(/^act-/,'');
+  _opGroup(actId, rows, 'Grupo');
+  _clearSelection(act);
 }
 function _pushMergeToEditStack(actId, oldRows, newId, newTr, parentHeader, parentHeaderData){
   // Capture full outerHTML of all affected rows BEFORE any further mutation
