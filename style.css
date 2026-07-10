@@ -1108,7 +1108,7 @@ tr.custom-group-header .group-arrow{color:#7aafff!important}
    abajo a la derecha (no encima del logo Garmin ni del ✕ del conector).
    _layoutEditToggles() coloca los lápices a la izquierda del cluster. */
 .lap-ur-fab{
-  position:fixed;bottom:14px;right:14px;z-index:80;
+  position:fixed;bottom:14px;right:14px;z-index:100;
   display:none;flex-direction:row;gap:6px;
 }
 .lap-ur-fab.visible{display:flex}
@@ -1131,7 +1131,7 @@ tr.custom-group-header .group-arrow{color:#7aafff!important}
    "Generar imagen / Copiar imagen / Obtener link" hacia arriba. Click fuera
    o segunda pulsación en el trigger cierra el menú. */
 .lap-act-fab{
-  position:fixed;bottom:14px;z-index:80;
+  position:fixed;bottom:14px;z-index:100;
   display:none;flex-direction:column-reverse;align-items:flex-start;gap:8px;
 }
 .lap-act-fab.visible{display:flex}
