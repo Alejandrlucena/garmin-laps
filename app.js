@@ -1469,7 +1469,7 @@ function _doCreateGroup(act){
   });
   if(rows.length<2) return;
   var actId=act.id.replace(/^act-/,'');
-  _opGroup(actId, rows, 'Grupo');
+  window._opGroup(actId, rows, 'Grupo');
   _clearSelection(act);
 }
 function _pushMergeToEditStack(actId, oldRows, newId, newTr, parentHeader, parentHeaderData){
@@ -9991,6 +9991,7 @@ setTimeout(function() {
     _markAdjId(actId);
     return groupId;
   }
+  W._opGroup = _opGroup;
 
   function _disbandGroup(actId, groupId){
     var header = document.getElementById(groupId);
