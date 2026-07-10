@@ -187,9 +187,9 @@ function _saveAdj(actId, adj){
   if(!srv||srv===window.location.origin) return;
   try{
     fetch(srv+'/adj/'+encodeURIComponent(_adjNorm(actId)),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(merged)}).then(function(r){
-      if(!r.ok) console.warn('[ADJ] POST fail', r.status);
-    }).catch(function(e){console.warn('[ADJ] POST error', e);});
-  }catch(e){console.warn('[ADJ] exception', e);}
+      if(!r.ok) {/*console.warn('[ADJ] POST fail', r.status);*/}
+    }).catch(function(e){/*console.warn('[ADJ] POST error', e);*/});
+  }catch(e){/*console.warn('[ADJ] exception', e);*/}
 }
 /* ── CELL EDIT PERSISTENCE ── */
 function _cellKey(actId){ return 'garmin-cell-act-'+actId; }
@@ -209,14 +209,14 @@ function _saveCellState(actId){
   // if(prev&&JSON.stringify(prev)===JSON.stringify(data)){ console.log('[CELL-SAVE] unchanged, skipping for '+actId); return; }
   try{
     localStorage.setItem(key, JSON.stringify(data));
-  }catch(e){console.warn('[CELL-SAVE] localStorage error', e);}
+  }catch(e){/*console.warn('[CELL-SAVE] localStorage error', e);*/}
   var srv=_adjServerUrl();
   if(srv&&srv!==window.location.origin){
     var adj=_loadAdj(actId)||{};
     adj._cellData=data;
     fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)})
       // .then(function(r){if(!r.ok)throw new Error(r.status);console.log('[CELL-SAVE] server OK actId='+actId);})
-      .catch(function(e){console.warn('[CELL-SAVE] server error actId='+actId, e.message);});
+      .catch(function(e){/*console.warn('[CELL-SAVE] server error actId='+actId, e.message);*/});
   }
   // console.log('[CELL-SAVE] actId='+actId+' rows='+Object.keys(data).length+' key='+key);
 }
@@ -696,7 +696,7 @@ function _dumpServerAdj(){
     fetch(url).then(function(r){ return r.json(); }).then(function(d){
       // console.log('[ADJ] server data for', id, d);
     }).catch(function(e){
-      console.warn('[ADJ] server fetch failed for', id, e);
+      /*console.warn('[ADJ] server fetch failed for', id, e);*/
     });
   });
 }
@@ -1924,7 +1924,7 @@ function debugDumpTable(){
     out.push({actividad:aid,titulo:titulo?titulo.textContent.trim():'',rows:actRows});
   });
   _DB('DUMP', '--- TABLE STRUCTURE ---');
-  console.log(JSON.stringify(out,null,2));
+  // console.log(JSON.stringify(out,null,2));
   _DB('DUMP', '--- END ---');
 }
 function _reRenderCompact() {
@@ -2518,7 +2518,7 @@ function _onDistEdit(input, actId){
       if(typeof window._updateFabState==='function') window._updateFabState();
     }
   } catch(e) {
-    console.error('ERROR _onDistEdit:', e);
+    /*console.error('ERROR _onDistEdit:', e);*/
   }
 }
 function _onPaceEdit(input, actId){
@@ -7584,7 +7584,7 @@ function recomputeHRZonesFromRecords() {
       }
       document.getElementById('json-input').value = JSON.stringify(obj, null, 2);
       return true;
-    } catch(e){console.warn('recomputeHRZonesFromRecords:',e);}
+    } catch(e){/*console.warn('recomputeHRZonesFromRecords:',e);*/}
   }
   return false;
 }
@@ -9075,44 +9075,44 @@ setTimeout(function() {
   // Global debug dump
   function _dumpRenderedHTML(){
     var acts=document.querySelectorAll('.actividad');
-    console.log('====== RENDERED TABLE HTML ======');
-    acts.forEach(function(act){
-      var actId=act.id.replace('act-','');
-      console.log('--- ACTIVITY: '+actId+' ('+(act.getAttribute('data-title')||'')+') ---');
-      var tbody=act.querySelector('tbody');
-      if(!tbody) return;
-      Array.from(tbody.children).forEach(function(r,i){
-        var id=r.id||'(no-id)';
-        var cls=(r.className||'').split(' ')[0];
-        var dur=parseFloat(r.getAttribute('data-dur'))||0;
-        var lbl=r.getAttribute('data-lbl')||'';
-        var zones=r.getAttribute('data-zones')||'[]';
-        console.log('['+i+'] '+id+' ('+cls+') dur='+dur+' lbl="'+lbl+'"');
-        // Print each cell's text content (truncated)
-        var cells=r.querySelectorAll('td');
-        Array.from(cells).forEach(function(td,ci){
-          var cls2=td.className||'';
-          var txt=(td.textContent||'').trim().replace(/\s+/g,' ').substring(0,80);
-          console.log('  td['+ci+'] cls="'+cls2+'" text="'+txt+'"');
-        });
-        // Show parsed zones
-        try{
-          var zr=JSON.parse(zones.replace(/&quot;/g,'"'));
-          if(Array.isArray(zr)&&zr.length>0){
-            console.log('  ZONES: '+zr.map(function(z){return z.nombre+'='+z.secs+'s';}).join(', '));
-          } else {
-            console.log('  ZONES: (empty)');
-          }
-        }catch(e){ console.log('  ZONES: (parse error)'); }
-        // Print key data attributes
-        console.log('  ATTRS: spd='+r.getAttribute('data-speed')+' dist='+r.getAttribute('data-dist')+' fcm='+r.getAttribute('data-fcm')+' fcx='+r.getAttribute('data-fcx')+' cad='+r.getAttribute('data-cad')+' pow='+r.getAttribute('data-pow'));
-        console.log('---');
-      });
-    });
-    console.log('====== END RENDERED HTML ======');
-    console.log('STACK: undo='+W._editStack.length+' redo='+W._editRedo.length);
-    console.log('UNDO: '+W._editStack.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
-    console.log('REDO: '+W._editRedo.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
+    // console.log('====== RENDERED TABLE HTML ======');
+    // acts.forEach(function(act){
+    //   var actId=act.id.replace('act-','');
+    //   console.log('--- ACTIVITY: '+actId+' ('+(act.getAttribute('data-title')||'')+') ---');
+    //   var tbody=act.querySelector('tbody');
+    //   if(!tbody) return;
+    //   Array.from(tbody.children).forEach(function(r,i){
+    //     var id=r.id||'(no-id)';
+    //     var cls=(r.className||'').split(' ')[0];
+    //     var dur=parseFloat(r.getAttribute('data-dur'))||0;
+    //     var lbl=r.getAttribute('data-lbl')||'';
+    //     var zones=r.getAttribute('data-zones')||'[]';
+    //     console.log('['+i+'] '+id+' ('+cls+') dur='+dur+' lbl="'+lbl+'"');
+    //     // Print each cell's text content (truncated)
+    //     var cells=r.querySelectorAll('td');
+    //     Array.from(cells).forEach(function(td,ci){
+    //       var cls2=td.className||'';
+    //       var txt=(td.textContent||'').trim().replace(/\s+/g,' ').substring(0,80);
+    //       console.log('  td['+ci+'] cls="'+cls2+'" text="'+txt+'"');
+    //     });
+    //     // Show parsed zones
+    //     try{
+    //       var zr=JSON.parse(zones.replace(/&quot;/g,'"'));
+    //       if(Array.isArray(zr)&&zr.length>0){
+    //         console.log('  ZONES: '+zr.map(function(z){return z.nombre+'='+z.secs+'s';}).join(', '));
+    //       } else {
+    //         console.log('  ZONES: (empty)');
+    //       }
+    //     }catch(e){ console.log('  ZONES: (parse error)'); }
+    //     // Print key data attributes
+    //     console.log('  ATTRS: spd='+r.getAttribute('data-speed')+' dist='+r.getAttribute('data-dist')+' fcm='+r.getAttribute('data-fcm')+' fcx='+r.getAttribute('data-fcx')+' cad='+r.getAttribute('data-cad')+' pow='+r.getAttribute('data-pow'));
+    //     console.log('---');
+    //   });
+    // });
+    // console.log('====== END RENDERED HTML ======');
+    // console.log('STACK: undo='+W._editStack.length+' redo='+W._editRedo.length);
+    // console.log('UNDO: '+W._editStack.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
+    // console.log('REDO: '+W._editRedo.map(function(o){return o.type+'('+o.id+')';}).join(' | '));
   }
   W._dumpRenderedHTML=_dumpRenderedHTML;
   function _dumpAllTables(){
@@ -11090,7 +11090,7 @@ document.addEventListener('click', function(e){
   if(!title||title.getAttribute('contenteditable')==='true')return;
   e.preventDefault();
   var html=title.innerHTML;
-  var txt=html.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
+  var txt=html.replace(/<div[^>]*>/gi,'\n').replace(/<\/div>/gi,'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
   var idx=txt.lastIndexOf(' · ');
   var nameOnly=idx>=0?txt.substring(idx+3).trim():txt;
   title.innerHTML=nameOnly.replace(/\n/g,'<br>');
@@ -11106,7 +11106,7 @@ document.addEventListener('click', function(e){
     title.contentEditable='false';
     var inp=document.getElementById('sh-custom-name');
     if(inp){
-      var val=title.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
+      var val=title.innerHTML.replace(/<div[^>]*>/gi,'\n').replace(/<\/div>/gi,'').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
       inp.value=val;
       inp.dispatchEvent(new Event('input'));
     }
