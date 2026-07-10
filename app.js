@@ -3039,23 +3039,6 @@ document.addEventListener('change',function(e){
   if(!act) return;
   if(cb.checked) tr.classList.add('row-selected');
   else tr.classList.remove('row-selected');
-  // When checking a group/phase header, also toggle all child sub-lap checkboxes
-  if(tr.classList.contains('group-header')||tr.classList.contains('phase-header')){
-    var next=tr.nextElementSibling;
-    while(next){
-      var nc=next.className||'';
-      if(nc.indexOf('group-header')>=0||nc.indexOf('phase-header')>=0||nc.indexOf('avg-row')>=0||nc.indexOf('avg-act')>=0) break;
-      if(nc.indexOf('group-lap')>=0||nc.indexOf('warmup-row')>=0||nc.indexOf('cooldown-row')>=0||nc.indexOf('group-boundary')>=0){
-        var childCb=next.querySelector('.lap-checkbox');
-        if(childCb&&childCb.checked!==cb.checked){
-          childCb.checked=cb.checked;
-          if(cb.checked) next.classList.add('row-selected');
-          else next.classList.remove('row-selected');
-        }
-      }
-      next=next.nextElementSibling;
-    }
-  }
   _updateSelectionUI(act);
 });
 function _recalcAvgRows(actId){
@@ -9471,9 +9454,6 @@ setTimeout(function() {
       if(next.classList.contains('row-hidden')){ next=next.nextElementSibling; continue; }
       if(next.getAttribute && next.getAttribute('data-custom-parent')===gid){
         rows.push(next);
-      } else if(next.classList.contains('group-lap') && headerTr.classList.contains('custom-group-header')){
-        // legacy group-lap inside a custom group (children with no explicit attr)
-        rows.push(next);
       } else {
         break;
       }
@@ -11109,11 +11089,11 @@ document.addEventListener('click', function(e){
   var title=e.target.closest('.share-preview-wrap .sc-title');
   if(!title||title.getAttribute('contenteditable')==='true')return;
   e.preventDefault();
-  // Strip tipo prefix so only the name is editable
-  var txt=title.textContent.trim();
+  var html=title.innerHTML;
+  var txt=html.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
   var idx=txt.lastIndexOf(' · ');
   var nameOnly=idx>=0?txt.substring(idx+3).trim():txt;
-  title.textContent=nameOnly;
+  title.innerHTML=nameOnly.replace(/\n/g,'<br>');
   title.contentEditable='true';
   title.spellcheck=false;
   title.focus();
@@ -11126,14 +11106,18 @@ document.addEventListener('click', function(e){
     title.contentEditable='false';
     var inp=document.getElementById('sh-custom-name');
     if(inp){
-      inp.value=title.textContent.trim();
+      var val=title.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,'').trim();
+      inp.value=val;
       inp.dispatchEvent(new Event('input'));
     }
     title.removeEventListener('blur',_end);
     title.removeEventListener('keydown',_key);
   }
   function _key(ke){
-    if(ke.key==='Enter'&&!ke.shiftKey){ke.preventDefault();title.blur();}
+    if(ke.key==='Enter'){
+      if(ke.ctrlKey){ke.preventDefault();title.blur();}
+      else ke.stopPropagation();
+    }
   }
   title.addEventListener('blur',_end);
   title.addEventListener('keydown',_key);
