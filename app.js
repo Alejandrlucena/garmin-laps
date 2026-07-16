@@ -459,7 +459,10 @@ function _syncAdjIdsFromServer(){
     if(!resp||!resp.files) return;
     resp.files.forEach(function(item){
       var d=item.data||{};
-      if(d.sesDist||d.serDist||d.sesPace||d.serPace) _markAdjId(item.id);
+      if(d.sesDist||d.serDist||d.sesPace||d.serPace){
+        try{ localStorage.setItem(_adjKey(item.id), JSON.stringify(d)); }catch(e){}
+        _markAdjId(item.id);
+      }
     });
   }).catch(function(){});
 }
