@@ -119,18 +119,6 @@ function _adjServerUrl(){
   if(p==='8080'||p==='8000')return'http://localhost:8000';
   return window.location.origin;
 }
-/*TEMP-DIAG: logger temporal para encontrar la URL del 404 — ELIMINAR tras diagnóstico*/
-(function(){
-  var _origFetch=window.fetch.bind(window);
-  window.fetch=function(){
-    var url=arguments[0], opts=arguments[1]||{};
-    return _origFetch.apply(window,arguments).then(function(r){
-      if(!r.ok) console.log('[DIAG fetch fail]',(opts.method||'GET'),String(url),'->',r.status);
-      return r;
-    });
-  };
-})();
-/*TEMP-DIAG-END*/
 function _loadAdj(actId){
   try{
     var v = localStorage.getItem(_adjKey(actId));
@@ -222,10 +210,18 @@ function _saveCellState(actId){
   try{
     localStorage.setItem(key, JSON.stringify(data));
   }catch(e){/*console.warn('[CELL-SAVE] localStorage error', e);*/}
+  // Merge cell data into the full adj record (name + session fields) so the
+  // "Ajustes guardados" panel and other devices show the real values
+  var adj=_loadAdj(actId)||{};
+  if(!adj._activityName) adj._activityName=_getActName(actId);
+  if(typeof _enrichAdjFromChips==='function') _enrichAdjFromChips(actId, adj);
+  if(typeof _cacheOrigData==='function') _cacheOrigData(actId);
+  adj._cellData=data;
+  try{
+    localStorage.setItem(_adjKey(actId), JSON.stringify(adj));
+  }catch(e){/*console.warn('[CELL-SAVE] adj localStorage error', e);*/}
   var srv=_adjServerUrl();
   if(srv&&srv!==window.location.origin){
-    var adj=_loadAdj(actId)||{};
-    adj._cellData=data;
     fetch(srv+'/adj/'+encodeURIComponent(_adjNorm(actId)),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)})
       // .then(function(r){if(!r.ok)throw new Error(r.status);console.log('[CELL-SAVE] server OK actId='+actId);})
       .catch(function(e){/*console.warn('[CELL-SAVE] server error actId='+actId, e.message);*/});
