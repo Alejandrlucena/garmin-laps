@@ -3319,6 +3319,11 @@ function renderActividad(d){
   var _hasCompactedRows=seriesArr.some(function(s){return !!s._subLaps;});
   var esContinua=esCarrera||((isCycling||isMoto)&&!_hasSeries&&!_hasCompactedRows);
   var esPlanTrabajo=seriesArr.some(function(s){return s._intensityType==='RECOVERY';});
+  // One active lap followed by one REST lap is already the intended structure;
+  // rendering a synthetic "Carrera X-Y" header would duplicate it.
+  var esSerieAlterna=seriesArr.length>=4&&seriesArr.every(function(s,i){
+    return i%2===0?!_isDescanso(s):_isDescanso(s);
+  });
   showLapCol=showLapCol&&!esContinua;
 
   // FC range for zone distribution weighting
@@ -3905,7 +3910,7 @@ var allR=[];
         syn.vuelta=_rangeFromRows(g.laps);
         syn._isFastestGroup=maxKmhVal>0&&g.activeLaps.some(function(l){return l.speed>=maxKmhVal-0.001;});
         var zonaSyn=_synthLap(g.laps,'');
-        if(esPlanTrabajo){
+        if(esPlanTrabajo||esSerieAlterna){
           g.laps.forEach(function(s, idx){
             var isDesc=_isDescanso(s);
             rows+=_dataRow(s, lastActiveLap, isDesc, false, idx===0?'group-boundary':'', true);
@@ -4399,6 +4404,9 @@ function _normLap(lap){
   // wktStepIndex: same value across laps from one workout step (auto-lap can split a step)
   const rawWkt=(lap.wktStepIndex!==undefined&&lap.wktStepIndex!==null)?lap.wktStepIndex:null;
   const wktStepIndex=rawWkt!==null?(typeof rawWkt==='object'&&rawWkt!==null?rawWkt.value:rawWkt):null;
+  // Garmin uses the reserved workout-step 4095 for its final bookkeeping lap.
+  // It can arrive marked ACTIVE even when it belongs to a preceding COOLDOWN.
+  const isReservedWorkoutStep=!!(rawWkt&&typeof rawWkt==='object'&&(rawWkt.reserved||rawWkt.value===4095));
   const lapIndex=lap.lapIndex||lap.lap_index||lap.messageIndex||lap.message_index||null;
   return{
     intensityType:intensity,
@@ -4415,7 +4423,8 @@ function _normLap(lap){
     hrTimeInZone:lap.hrTimeInZone||lap.hr_time_in_zones||[],
     lapStart:lap.lapStart||lap.lap_start||lapIndex,
     lapEnd:lap.lapEnd||lap.lap_end||lapIndex,
-    wktStepIndex:wktStepIndex
+    wktStepIndex:wktStepIndex,
+    isReservedWorkoutStep:isReservedWorkoutStep
   };
 }
 
@@ -4713,10 +4722,20 @@ function fromRawGarmin(raw){
   // When preceding active laps are all from a single workout step (continuous run), all
   // trailing laps are cooldown (no descanso needed).
   let trailingStart=laps.length;
-  for(let i=laps.length-1;i>=0;i--){
-    const t=laps[i].intensityType;
-    if(t==='ACTIVE'||t==='WARMUP')break;
-    trailingStart=i;
+  // An explicit COOLDOWN owns a terminal reserved bookkeeping lap too. Garmin
+  // labels that tiny step-4095 lap ACTIVE, which otherwise hides the cooldown.
+  const lastCooldownIdx=laps.map(l=>l.intensityType).lastIndexOf('COOLDOWN');
+  const cooldownHasOnlyTerminalTail=lastCooldownIdx>=0&&laps.slice(lastCooldownIdx+1).every(function(l){
+    return l.intensityType==='COOLDOWN'||(l.isReservedWorkoutStep&&l.distance<5&&l.duration<15);
+  });
+  if(cooldownHasOnlyTerminalTail){
+    trailingStart=lastCooldownIdx;
+  } else {
+    for(let i=laps.length-1;i>=0;i--){
+      const t=laps[i].intensityType;
+      if(t==='ACTIVE'||t==='WARMUP')break;
+      trailingStart=i;
+    }
   }
   let lastRealIdx=laps.length-1;
   if(trailingStart<laps.length){
@@ -4802,7 +4821,7 @@ function fromRawGarmin(raw){
     const wCad=cooldownLaps.reduce((a,l)=>a+(l.averageRunCadence*l.duration),0)/(totDur||1);
     const wSpd=totDur>0?totDist/totDur:0;
     const synthLap={averageHR:wHR,duration:totDur,hrTimeInZone:mergeHrZones(cooldownLaps)};
-    const subLaps=cooldownLaps.length>1?_mergeResidualSub(cooldownLaps.map((lap)=>{
+    const cooldownSubRows=cooldownLaps.map((lap)=>{
       var cad=lap.avgRunningCadence||lap.averageRunCadence||lap.avg_running_cadence||lap.avg_cadence||lap.avg_run_cadence||lap.averageCadence||lap.cadencia||lap.cadence||0;
       return{label:'Enfriamiento',_intensityType:'COOLDOWN',
         vuelta:lapRange([lap]),
@@ -4812,7 +4831,11 @@ function fromRawGarmin(raw){
         desnivel:Math.round((lap.elevationGain||0)-(lap.elevationLoss||0)),
         fc_med:Math.round(lap.averageHR||0),fc_max:Math.round(lap.maxHR||0),
         zonas_lap:lapZones(lap),residual:lap.residual||false};
-    })):null;
+    });
+    // Keep Garmin's terminal reserved lap visible as its own cooldown row.
+    const subLaps=cooldownLaps.length>1
+      ?(cooldownLaps.some(l=>l.isReservedWorkoutStep)?cooldownSubRows:_mergeResidualSub(cooldownSubRows))
+      :null;
     cooldown={
       label:'Enfriamiento',_intensityType:'COOLDOWN',
       speed:wSpd,
@@ -11149,4 +11172,3 @@ if (document.readyState === 'loading') {
 } else {
   _updateClearBtnState();
 }
-
