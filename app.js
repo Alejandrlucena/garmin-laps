@@ -214,7 +214,7 @@ function _saveCellState(actId){
   if(srv&&srv!==window.location.origin){
     var adj=_loadAdj(actId)||{};
     adj._cellData=data;
-    fetch(srv+'/adj/'+actId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)})
+    fetch(srv+'/adj/'+encodeURIComponent(_adjNorm(actId)),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(adj)})
       // .then(function(r){if(!r.ok)throw new Error(r.status);console.log('[CELL-SAVE] server OK actId='+actId);})
       .catch(function(e){/*console.warn('[CELL-SAVE] server error actId='+actId, e.message);*/});
   }
@@ -258,7 +258,7 @@ function _loadCellState(actId){
   var srv=_adjServerUrl();
   if(srv&&srv!==window.location.origin){
     var xhr=new XMLHttpRequest();
-    xhr.open('GET',srv+'/adj/'+actId,false);
+    xhr.open('GET',srv+'/adj/'+encodeURIComponent(_adjNorm(actId)),false);
     try{
       xhr.send();
       if(xhr.status===200){
@@ -288,8 +288,16 @@ function _loadCellState(actId){
     return false;
   }
   var _applied=_applyData(saved);
-  if(_applied) _markAdjId(actId);
-  return _applied;
+  if(_applied){
+    _markAdjId(actId);
+    return true;
+  }
+  var _adjd=_loadAdj(actId);
+  if(!_adjd||!_hasAdjData(_adjd)){
+    try{ localStorage.removeItem(_cellKey(actId)); }catch(e){}
+    _unmarkAdjId(actId);
+  }
+  return false;
 }
 function _readChipVal(actId, field){
   var el=document.querySelector('[data-act="'+actId+'"][data-field="'+field+'"]');
@@ -459,8 +467,9 @@ function _syncAdjIdsFromServer(){
     if(!resp||!resp.files) return;
     resp.files.forEach(function(item){
       var d=item.data||{};
-      if(d.sesDist||d.serDist||d.sesPace||d.serPace){
+      if(d.sesDist||d.serDist||d.sesPace||d.serPace||d._cellData){
         try{ localStorage.setItem(_adjKey(item.id), JSON.stringify(d)); }catch(e){}
+        if(d._cellData){ try{ localStorage.setItem(_cellKey(item.id), JSON.stringify(d._cellData)); }catch(e){} }
         _markAdjId(item.id);
       }
     });
@@ -3324,6 +3333,9 @@ function renderActividad(d){
   var esSerieAlterna=seriesArr.length>=4&&seriesArr.every(function(s,i){
     return i%2===0?!_isDescanso(s):_isDescanso(s);
   });
+  // Garmin Connect rounds cumulative times to whole seconds for this prescribed
+  // ACTIVE/REST structure, while active split times keep their tenths.
+  var usaTiempoGarmin=esSerieAlterna;
   showLapCol=showLapCol&&!esContinua;
 
   // FC range for zone distribution weighting
@@ -3544,9 +3556,11 @@ var allR=[];
     var _rn=_rowNum;
     var _vuelta=s.vuelta||s.lapLabel||_rn;
     var _thisDur=s.dur_raw_secs||s.dur_secs||0;
+    var _rowTimeDec=isMoto?3:((usaTiempoGarmin&&(isDesc||/(?:warmup|cooldown)-row/.test(rowClass||'')))?0:1);
+    var _rowTimeDisplay=secsToStepStr(_thisDur,_rowTimeDec);
     _cumTimeSecs+=_thisDur;
     var _ct=_cumTimeSecs;
-    var _cumDisplay=secsToStepStr(_ct,isMoto?3:1);
+    var _cumDisplay=secsToStepStr(_ct,usaTiempoGarmin?0:(isMoto?3:1));
     var fcmaxVal=s.fc_max>0?(s.fc_max===maxFCxVal&&!isDesc?'<span class="fc-max-pill">'+s.fc_max+'</span>':s.fc_max):'';
     var lbl=s.label||'—';
     // Show duration if NOT a simple number (continuous run = just "1", "2", etc.)
@@ -3591,7 +3605,7 @@ var allR=[];
       var _refDur=hasRef?(ref.dur_raw_secs||ref.dur_secs||0):0;
       var _extraCells=useTiming
       ?(showLapCol?'<td class="col-lap" style="color:'+restLapColor+';font-weight:700;font-size:11px">'+_vuelta+'</td>':'')
-        +'<td class="col-time"><div class="metric"><div class="main"'+restTimeStyle+'>'+secsToStepStr(_thisDur,isMoto?3:1)+'</div>'+(hasRef?(isDesc?dDescansoTimeSecs(_thisDur,_refDur,isMoto?3:1):dTimeSecs(_thisDur,_refDur,isMoto?3:1)):'')+'</div></td>'
+        +'<td class="col-time"><div class="metric"><div class="main"'+restTimeStyle+'>'+_rowTimeDisplay+'</div>'+(hasRef?(isDesc?dDescansoTimeSecs(_thisDur,_refDur,_rowTimeDec):dTimeSecs(_thisDur,_refDur,_rowTimeDec)):'')+'</div></td>'
         +'<td class="col-cum-time">'+'<div class="metric"><div class="main" style="font-size:10px;color:'+(isDesc?'#252830':'#5a6070')+'">'+_cumDisplay+'</div></div></td>'
       :'';
       var _vmDesc=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'';
@@ -3613,7 +3627,7 @@ var allR=[];
         +(esContinua?(isIndoorCycling?'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+_vuelta+'</div></div></td>':'<td style="padding-right:0">'+(hideButton?_hideBtn(ri):'')+'<div class="metric" style="align-items:flex-start"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml((hasRef?dDist(s.dist_km,ref.dist_km,false):''),(hasRef?dElev(s.desnivel,ref.desnivel,false):''),s.desnivel,hasRef)+'</div></td>'):'<td>'+labelHtml+'</td>')
         +(useTiming
           ?(showLapCol?'<td class="col-lap" style="color:#6a7280;font-weight:700;font-size:11px">'+_vuelta+'</td>':'')
-            +(esContinua&&esCarrera?(function(){var _time=secsToStepStr(_thisDur,isMoto?3:1);return'<td class="col-time"><div class="metric"><div class="main">'+(_isFastest&&_time?'<span class="ritmo-pill">'+_time+'</span>':_time)+'</div>'+(hasRef?dTimeSecs(_thisDur,ref.dur_raw_secs||ref.dur_secs||0,isMoto?3:1):'')+'</div></td>';}()):'<td class="col-time"><div class="metric"><div class="main">'+((isMoto||(isCycling&&!isIndoorCycling))&&_isFastest&&_thisDur>0?'<span class="ritmo-pill">'+secsToStepStr(_thisDur,isMoto?3:1)+'</span>':secsToStepStr(_thisDur,isMoto?3:1))+'</div>'+(hasRef?dTimeSecs(_thisDur,ref.dur_raw_secs||ref.dur_secs||0,isMoto?3:1):'')+'</div></td>')
+            +(esContinua&&esCarrera?(function(){var _time=_rowTimeDisplay;return'<td class="col-time"><div class="metric"><div class="main">'+(_isFastest&&_time?'<span class="ritmo-pill">'+_time+'</span>':_time)+'</div>'+(hasRef?dTimeSecs(_thisDur,ref.dur_raw_secs||ref.dur_secs||0,_rowTimeDec):'')+'</div></td>';}()):'<td class="col-time"><div class="metric"><div class="main">'+((isMoto||(isCycling&&!isIndoorCycling))&&_isFastest&&_thisDur>0?'<span class="ritmo-pill">'+_rowTimeDisplay+'</span>':_rowTimeDisplay)+'</div>'+(hasRef?dTimeSecs(_thisDur,ref.dur_raw_secs||ref.dur_secs||0,_rowTimeDec):'')+'</div></td>')
             +'<td class="col-cum-time">'+'<div class="metric"><div class="main" style="font-size:10px;color:#5a6070">'+_cumDisplay+'</div></div></td>'
           :'')
         +(esContinua||isIndoorCycling?'':'<td class="col-dist" style="padding-left:14px;padding-right:14px"><div class="metric"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml((hasRef?dDist(s.dist_km,ref.dist_km,false):''),(hasRef?dElev(s.desnivel,ref.desnivel,false):''),s.desnivel,hasRef)+'</div></td>')
@@ -3669,6 +3683,7 @@ var allR=[];
 
   function _summaryRow(s, rowClass, label, cumSecs, zonasForRow, ref){
     var dur=s.dur_raw_secs||s.dur_secs||0;
+    var _summaryTimeDec=usaTiempoGarmin?0:(isMoto?3:1);
     var gi=_rowIdx++;
     var gid=_actId+'g'+gi;
     var canToggle=/\b(group-header|phase-header)\b/.test(rowClass||'');
@@ -3690,7 +3705,7 @@ var allR=[];
     var _vmS=s.speed_max>=0.3?(s.speed_max*3.6).toFixed(2):'—';
     var _isVmaxSummary=!_isDescanso(s)&&maxSmaxSum>=0.3&&s.speed_max>=0.3&&Math.abs(s.speed_max-maxSmaxSum)<0.001;
     var _vmSPill=_vmS!=='—'?(_isVmaxSummary?'<span class="vel-max-pill">'+_vmS+' km/h</span>':_vmS+' km/h'):'—';
-    var dDurH=hasRef?dTimeSecs(dur,ref.dur_raw_secs||ref.dur_secs||0,isMoto?3:1):'';
+    var dDurH=hasRef?dTimeSecs(dur,ref.dur_raw_secs||ref.dur_secs||0,_summaryTimeDec):'';
     var _isFastestSum;
     if(_isDescanso(s)||(s._subLaps&&s._subLaps.length&&s._subLaps.every(function(l){return _isDescanso(l)||_residualSet.has(l);}))){_isFastestSum=false;}
     else if(s._isFastestGroup!==undefined){_isFastestSum=s._isFastestGroup;}
@@ -3701,8 +3716,8 @@ var allR=[];
     return '<tr'+attrs+' class="'+rowClass+' step-summary'+(_isFastestSum&&!_phaseHeader?' fastest-lap':'')+'">'
       +'<td>'+firstCell+'</td>'
       +'<td class="col-lap" style="font-weight:600">'+(s.vuelta||'')+'</td>'
-      +'<td class="col-time"><div class="metric"><div class="main">'+(dur?((isMoto||(isCycling&&!isIndoorCycling))&&_isFastestSum?'<span class="ritmo-pill">'+secsToStepStr(dur,isMoto?3:1)+'</span>':secsToStepStr(dur,isMoto?3:1)):'—')+'</div>'+dDurH+'</div></td>'
-      +'<td class="col-cum-time"><div class="metric"><div class="main">'+(cumSecs?secsToStepStr(cumSecs,isMoto?3:1):'—')+'</div></div></td>'
+      +'<td class="col-time"><div class="metric"><div class="main">'+(dur?((isMoto||(isCycling&&!isIndoorCycling))&&_isFastestSum?'<span class="ritmo-pill">'+secsToStepStr(dur,_summaryTimeDec)+'</span>':secsToStepStr(dur,_summaryTimeDec)):'—')+'</div>'+dDurH+'</div></td>'
+      +'<td class="col-cum-time"><div class="metric"><div class="main">'+(cumSecs?secsToStepStr(cumSecs,_summaryTimeDec):'—')+'</div></div></td>'
       +(isIndoorCycling?'':'<td class="col-dist" style="padding-left:14px;padding-right:14px"><div class="metric"><div class="main">'+fmtDistKm(s.dist_km)+'</div>'+distElevHtml(distDelta,elevDelta,s.desnivel,hasRef)+'</div></td>')
       +(isIndoorCycling?'':(function(){var _spd=toKmh(s.speed);return'<td class="col-speed"><div class="metric"><div class="main">'+(_spd?(_isSummaryFastest?'<span class="vel-med-pill">'+_spd+' km/h</span>':_spd+' km/h'):'—')+'</div>'+dKmhH+'</div></td>';}()))
       +((isMoto||(isCycling&&!isIndoorCycling))
@@ -4153,7 +4168,7 @@ var allR=[];
 
   var lblContent=(d.fecha||'')+' — '+(d.nombre||'')+' — '+(d.tipo||'')+' — '+(d.distancia_total||'');
 
-     return'<div class="actividad" id="act-'+_actId+'" data-act-name="'+escHtml(d.nombre||'')+'" data-act-date="'+escHtml(d.fecha||'')+'" data-act-type="'+escHtml(d.tipo||'')+'" data-act-dist="'+escHtml(d.distancia_total||'')+'" data-act-dur="'+totalDurSes+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'" data-fit-id="'+escHtml(d._fit_act_id||'')+'">'
+     return'<div class="actividad" id="act-'+_actId+'" data-act-name="'+escHtml(d.nombre||'')+'" data-act-date="'+escHtml(d.fecha||'')+'" data-act-type="'+escHtml(d.tipo||'')+'" data-act-dist="'+escHtml(d.distancia_total||'')+'" data-act-dur="'+totalDurSes+'" data-sport="'+(isMoto?'MOTO':isCycling?'BICI':'RUN')+'" data-indoor="'+(isIndoorCycling?1:0)+'" data-continua="'+(esContinua?1:0)+'" data-garmin-split-timing="'+(usaTiempoGarmin?1:0)+'" data-orig-dist="'+totalDistSes.toFixed(4)+'" data-orig-dur="'+totalDurSes+'" data-orig-dist-ser="'+totalDistSer.toFixed(4)+'" data-orig-dur-ser="'+totalDurSer+'" data-fit-id="'+escHtml(d._fit_act_id||'')+'">'
     +'<div class="lbl" contenteditable="true" spellcheck="false"'
     +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur()}"'
     +' title="Haz clic para editar">'+lblContent+'</div>'
@@ -7924,8 +7939,9 @@ function _renderConnectorActs(acts) {
     if(!presentIds[id]){ dirty=true; return false; }
     var d=_loadAdj(id);
     if(d&&_hasAdjData(d)) return true;
-    // Cell data without adj differences → stale, clean up
-    try{ var c=localStorage.getItem(_cellKey(id)); if(c){ localStorage.removeItem(_cellKey(id)); } }catch(e){}
+    // Keep ids with cell data (lap cell edits don't create adj records);
+    // stale entries (no adj, no cell data) are cleaned here, the rest is validated on open
+    try{ var c=localStorage.getItem(_cellKey(id)); if(c) return true; }catch(e){}
     dirty=true; return false;
   });
   if(dirty){ _saveAdjIds(adjIds); }
@@ -8856,7 +8872,7 @@ setTimeout(function() {
   function _recalcCumTimes(actId){
     var act = _actEl(actId); if(!act) return;
     var m = _actMeta(actId);
-    var dec = m && m.isMoto ? 3 : 1;
+    var dec = m && m.usesGarminSplitTiming ? 0 : (m && m.isMoto ? 3 : 1);
     var cum = 0;
     Array.from(act.querySelectorAll('tbody tr')).forEach(function(tr){
       if(tr.classList.contains('avg-row')||tr.classList.contains('avg-act')) return;
@@ -9086,7 +9102,6 @@ setTimeout(function() {
     if(!op){ return; }
     try{ if(op.apply) op.apply(); }catch(e){}
     W._editStack.push(op);
-    _markAdjId(op.actId);
     _refreshAct(op.actId);
     if(typeof _saveCellState==='function') _saveCellState(op.actId);
     if(typeof _applyAdjustUI==='function') _applyAdjustUI(op.actId);
@@ -9204,6 +9219,7 @@ setTimeout(function() {
       isCyc:  sport==='BICI',
       isInd:  act.getAttribute('data-indoor')==='1',
       isCont: act.getAttribute('data-continua')==='1',
+      usesGarminSplitTiming: act.getAttribute('data-garmin-split-timing')==='1',
     };
   }
 
@@ -9367,7 +9383,7 @@ setTimeout(function() {
     if(ths[0] && ths[0].classList.contains('col-actions')) ths.shift();
     if(!ths.length) return '';
     var m = _actMeta(actId);
-    var dec = m && m.isMoto ? 3 : 1;
+    var dec = m && m.usesGarminSplitTiming ? 0 : (m && m.isMoto ? 3 : 1);
     var types = ths.map(_colTypeOfTh);
     types[0] = 'label';
     // Pre-calcula valores max de otros resumenes para envolver el agregado del grupo en pills.
@@ -9663,7 +9679,7 @@ setTimeout(function() {
     var act = headerTr.closest('.actividad'); if(!act) return;
     var actId = act.id.replace(/^act-/, '');
     var m = _actMeta(actId);
-    var dec = m && m.isMoto ? 3 : 1;
+    var dec = m && m.usesGarminSplitTiming ? 0 : (m && m.isMoto ? 3 : 1);
 
     // Reference for deltas: previous visible peer header (group/phase/custom).
     var ref = _aggFromHeader(_prevPeerHeader(headerTr));
@@ -9994,7 +10010,6 @@ setTimeout(function() {
       }
     };
     _doOp(op);
-    _markAdjId(actId);
     return groupId;
   }
   W._opGroup = _opGroup;
