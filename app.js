@@ -119,6 +119,18 @@ function _adjServerUrl(){
   if(p==='8080'||p==='8000')return'http://localhost:8000';
   return window.location.origin;
 }
+/*TEMP-DIAG: logger temporal para encontrar la URL del 404 — ELIMINAR tras diagnóstico*/
+(function(){
+  var _origFetch=window.fetch.bind(window);
+  window.fetch=function(){
+    var url=arguments[0], opts=arguments[1]||{};
+    return _origFetch.apply(window,arguments).then(function(r){
+      if(!r.ok) console.log('[DIAG fetch fail]',(opts.method||'GET'),String(url),'->',r.status);
+      return r;
+    });
+  };
+})();
+/*TEMP-DIAG-END*/
 function _loadAdj(actId){
   try{
     var v = localStorage.getItem(_adjKey(actId));
@@ -521,7 +533,7 @@ function _refreshAdjViewer(){
       if(k&&k.indexOf('garmin-adjust-')===0){
         try{
           var v=JSON.parse(localStorage.getItem(k));
-          if(v&&(v.sesDist||v.serDist||v.sesPace||v.serPace)){
+          if(v&&(v.sesDist||v.serDist||v.sesPace||v.serPace||v._cellData)){
             localItems.push({key:k,data:v});
           }
         }catch(e){}
@@ -561,6 +573,7 @@ function _refreshAdjViewer(){
           +' · '
           +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
           +'</div>'
+          +(d._cellData?'<div style="margin-top:2px;color:#9aa0ae"><span>'+Object.keys(d._cellData).length+' vuelta(s) con celdas editadas</span></div>':'')
           +'</div></div>'
         +'</div>';
       });
@@ -591,14 +604,10 @@ function _refreshAdjViewer(){
     var adjFiles=[], orphanFiles=[];
     files.forEach(function(item){
       var d=item.data||{};
-      if(d.sesDist||d.serDist||d.sesPace||d.serPace) adjFiles.push(item);
+      if(d&&(d.sesDist||d.serDist||d.sesPace||d.serPace||d._cellData)) adjFiles.push(item);
       else orphanFiles.push(item);
     });
-    if(orphanFiles.length){
-      orphanFiles.forEach(function(item){
-        fetch(srv+'/adj/'+encodeURIComponent(item.id),{method:'DELETE'}).catch(function(){});
-      });
-    }
+    // NEVER auto-delete: cleanup of broken/empty files is opt-in only
     if(!adjFiles.length){
       listEl.innerHTML='<div style="color:#666;font-size:12px;padding:20px 0;text-align:center">No hay ajustes guardados en el servidor.</div>';
       return;
@@ -663,6 +672,7 @@ function _refreshAdjViewer(){
         +' · '
         +'<span>Ritmo activo: '+(d.serPace?_secsToPaceStr(d.serPace):'—')+'</span>'
         +'</div>'
+        +(d._cellData?'<div style="margin-top:2px;color:#9aa0ae"><span>'+Object.keys(d._cellData).length+' vuelta(s) con celdas editadas</span></div>':'')
         +'</div>'
         +'<div style="font-size:10px;color:#505870;margin-top:2px">'
         +'<span>'+fecha+'</span>'
